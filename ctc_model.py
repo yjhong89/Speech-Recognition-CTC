@@ -6,7 +6,7 @@ import numpy as np
 import time, os, math, shutil
 import tensorflow as tf
 from ops import *
-from data_loaders import SpeechLoader
+from data_loaders import *
 
 
 class CTC_Model():
@@ -167,11 +167,11 @@ class CTC_Model():
 			    # wav_input is numpy array
 			    batch_wav = batch_wave[tr_step*self.args.batch_size:(tr_step+1)*self.args.batch_size]
 			    # pad input array to the same length(maximum length)
-			    padded_batch_wav, original_batch_length = SpeechLoader.pad_sequences(batch_wav)
+			    padded_batch_wav, original_batch_length = pad_sequences(batch_wav)
 			    # target_label is numpy array 
 			    batch_lbl = batch_label[tr_step*self.args.batch_size:(tr_step+1)*self.args.batch_size]
 			    # Make target to sparse tensor form to apply to ctc functions
-			    sparse_batch_lbl = SpeechLoader.sparse_tensor_form(batch_lbl)
+			    sparse_batch_lbl = sparse_tensor_form(batch_lbl)
 			    feed = {self.input_data: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
 			    tr_step_loss, tr_step_ler, summary_str, _ = self.sess.run([self.loss, self.ler, self.summaries, self.train_op], feed_dict = feed)
 			    # Add summary
@@ -193,8 +193,8 @@ class CTC_Model():
 		   	for valid_step in xrange(valid_tr_step):
 				valid_batch_wav = valid_wav_input[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
 				valid_batch_lbl = valid_trg_label[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
-				padded_valid_wav, padded_valid_length = SpeechLoader.pad_sequences(valid_batch_wav)
-				valid_lbl = SpeechLoader.sparse_tensor_form(valid_batch_lbl)
+				padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
+				valid_lbl = sparse_tensor_form(valid_batch_lbl)
 		    
 				valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.input_data:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
 				valid_loss += valid_loss_
