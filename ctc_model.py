@@ -118,7 +118,7 @@ class CTC_Model():
 			# Training new one with same arguments
 			if os.path.exists(os.path.join(self.args.checkpoint_dir, self.model_dir)):
 				try : 
-					shutil.rmtree(os.path.join(self.args.checkpoint_dir, self.model_dir))
+					shutil.rmtree(os.path.join(self.args.checkpoint_dir, self.model_dir+'.csv'))
 					shutil.rmtree(os.path.join(self.args.log_dir, self.model_dir))
 				except(PermissionError) as e:
 					print('[Delete Error] %s - %s' % (e.filename, e.strerror))
@@ -214,7 +214,7 @@ class CTC_Model():
 				print('Label error rate is below 0.1 at epoch %d' % (index+1)) 
 				print('Valid error rate is below 0.2 at epoch %d' % (index+1))
 				self.save(index+1)
-		    	break
+				break
 		   
 		   	if overfit_index == 10:	
 				partition_idx += 1
