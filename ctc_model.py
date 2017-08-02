@@ -99,16 +99,11 @@ class CTC_Model():
 	def __str__(self):
 		return 'This model has input size {}, state size {}, {} of classes, () timesteps'.format(self.args.num_features, self.args.state_size, self.args.num_classes, self.step_s)
 	
-	def train(self, args):
-		#  data_loader = SpeechLoader(args.train_data_dir, args.num_features, args.num_classes)
-		#  test_data_loader = SpeechLoader(args.test_data_dir, args.num_features, args.num_classes)
-		# Getting training dataset
+	def train(self):
 		# For tensorboard, merging summaries to serialize summary probobuf
-		self.summaries = merge_summary([self.prob_summary, self.loss_summary, self.ler_summary])
+		#self.summaries = merge_summary([self.prob_summary, self.loss_summary, self.ler_summary])
 		# Pass merged summary to summarywirter to save at disc, need logdir and visualize graph
-		self.writer = SummaryWriter(os.path.join('./ctc_logs', self.model_dir), self.sess.graph)
-		# Number of training step in 1 epoch
-		#  trainingsteps_per_epoch = args.partition_index//args.batch_size 
+		#self.writer = SummaryWriter(os.path.join('./ctc_logs', self.model_dir), self.sess.graph)
 		 
 		# Counting total step
 		self.sess.run(tf.global_variables_initializer())
@@ -124,6 +119,7 @@ class CTC_Model():
 			if os.path.exists(os.path.join(self.args.checkpoint_dir, self.model_dir)):
 				try : 
 					shutil.rmtree(os.path.join(self.args.checkpoint_dir, self.model_dir))
+					shutil.rmtree(os.path.join(self.args.log_dir, self.model_dir))
 				except(PermissionError) as e:
 					print('[Delete Error] %s - %s' % (e.filename, e.strerror))
 		
@@ -132,17 +128,13 @@ class CTC_Model():
 		overfit_index = 0
 		partition_idx = 0
 		datamove_flag = 1
-		#  self.wav_input, self.trg_label = data_loader.partition(args.partition_index)
-		#  valid_wav_input, valid_trg_label = test_data_loader.partition(0, 1000)
-		for index in xrange(self.loaded_epoch, args.num_epoch):
-			# Every 5epochs, training 1 partition
+		for index in xrange(self.loaded_epoch, self.args.num_epoch):
 		   	# Shuffling datas
 			# shuffle index
 		   	start_time = time.time()
 			print("%d th epoch starts" % (index+1))
 		   	train_loss = 0
 		   	train_ler = 0
-			#  self.wav_input, self.trg_label = data_loader.partition(partition_idx, args.partition_index)
 		   	# Newly load new data
 		   	if datamove_flag:
 				print('Loading dataset')
@@ -152,7 +144,7 @@ class CTC_Model():
 				self.trg_label = trg_label[:3500]
 				valid_wav_input = wav_input[3500:]
 				valid_trg_label = trg_label[3500:]
-				print('%d-th 4000 dataset loaded with %d training data, %d validation data' % (partition_idx, len(self.wav_input), len(valid_wav_input)))
+				print('%d-th 4000 dataset loaded with %d training data, %d validation data' % (partition_idx+1, len(self.wav_input), len(valid_wav_input)))
 				data_length = len(self.wav_input)
 				trainingsteps_per_epoch = data_length // self.args.batch_size    
 				datamove_flag = 0
@@ -160,32 +152,33 @@ class CTC_Model():
 			shuffle_index = np.random.permutation(3500)
 		   	batch_wave = self.wav_input[shuffle_index]
 		   	batch_label = self.trg_label[shuffle_index]
+			print('Shape of batches %s, %s' % (batch_wave.shape, batch_label.shape))
 		
 		   	for tr_step in xrange(trainingsteps_per_epoch):
-			    s_time = time.time()
-				#batch_idx = [i % args.partition_index for i in xrange(args.batch_size*tr_step, args.batch_size*(tr_step+1))]
-			    # wav_input is numpy array
-			    batch_wav = batch_wave[tr_step*self.args.batch_size:(tr_step+1)*self.args.batch_size]
-			    # pad input array to the same length(maximum length)
-			    padded_batch_wav, original_batch_length = pad_sequences(batch_wav)
+				s_time = time.time()
+				batch_idx = [i for i in xrange(self.args.batch_size*tr_step, (tr_step+1)*self.args.batch_size)]
+				# wav_input is numpy array
+				batch_wav = batch_wave[batch_idx]
+				# pad input array to the same length(maximum length)
+				padded_batch_wav, original_batch_length = pad_sequences(batch_wav)
 			    # target_label is numpy array 
-			    batch_lbl = batch_label[tr_step*self.args.batch_size:(tr_step+1)*self.args.batch_size]
+				batch_lbl = batch_label[batch_idx]
 			    # Make target to sparse tensor form to apply to ctc functions
-			    sparse_batch_lbl = sparse_tensor_form(batch_lbl)
-			    feed = {self.input_data: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
-			    tr_step_loss, tr_step_ler, summary_str, _ = self.sess.run([self.loss, self.ler, self.summaries, self.train_op], feed_dict = feed)
+				sparse_batch_lbl = sparse_tensor_form(batch_lbl)
+				feed = {self.input_data: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
+				tr_step_loss, tr_step_ler, _ = self.sess.run([self.loss, self.ler,  self.train_op], feed_dict = feed)
 			    # Add summary
-			    self.writer.add_summary(summary_str, total_step)
-			    train_loss += tr_step_loss*self.args.batch_size
-			    train_ler += tr_step_ler*self.args.batch_size
-			    print("[%d/%d] in Epoch %d, Train loss = %3.3f, Ler = %3.3f, Time per batch = %3.3f, %d steps" % (tr_step+1, trainingsteps_per_epoch, index+1, tr_step_loss, tr_step_ler, time.time()-s_time, total_step))
-			    total_step += 1
+				#self.writer.add_summary(summary_str, total_step)
+				train_loss += tr_step_loss*self.args.batch_size
+				train_ler += tr_step_ler*self.args.batch_size
+				print("[%d/%d] in Epoch %d, Train loss = %3.3f, Ler = %3.3f, Time per batch = %3.3f, %d steps" % (tr_step+1, trainingsteps_per_epoch, index+1, tr_step_loss, tr_step_ler, time.time()-s_time, total_step))
+				total_step += 1
 		
 			# Metric mean
 			train_loss /= data_length
 		   	train_ler /= data_length
 		
-			print('Epoch %d/%d, Training loss : %3.3f, Training LabelError : %3.3f, Time per epoch: %3.3f' % (index+1, args.num_epoch, train_loss, train_ler, time.time() - start_time))
+			print('Epoch %d/%d, Training loss : %3.3f, Training LabelError : %3.3f, Time per epoch: %3.3f' % (index+1, self.args.num_epoch, train_loss, train_ler, time.time() - start_time))
 		   	valid_loss = 0
 		   	valid_ler = 0
 		   	valid_tr_step = len(valid_wav_input) // self.args.batch_size
@@ -211,8 +204,12 @@ class CTC_Model():
 				overfit_index += 1   	
 				print('Validation not improved for %d epochs' % (overfit_index))
 		     
-		   	if (np.mod(index+1, args.save_interval) == 0) or (index == args.num_epoch -1):
+		   	if (np.mod(index+1, self.args.save_interval) == 0) or (index == self.args.num_epoch -1):
+				print('Save')
 				self.save(index+1)
+
+			self.write_log(index+1, train_loss, train_ler, valid_loss / valid_tr_step, valid_ler / valid_tr_step, start_time)
+
 		   	if train_ler < 1e-1 and valid_ler < 0.2:
 				print('Label error rate is below 0.1 at epoch %d' % (index+1)) 
 				print('Valid error rate is below 0.2 at epoch %d' % (index+1))
@@ -226,6 +223,7 @@ class CTC_Model():
 				datamove_flag = 1
 		   	if partition_idx == 50:
 				partition_idx = 0
+			print('%d epoch finished' % (index+1))
    
 
 	@property
@@ -270,6 +268,18 @@ class CTC_Model():
 			print('Failed to find a checkpoint')
 			self.loaded_epoch = 0
 			return False
+
+	def write_log(self, epoch, loss, ler, valid_loss, valid_ler, start_time):
+		print('Write logs..')
+		try:
+			self.log_file = open(os.path.join(self.args.log_dir, self.model_dir+'.csv'), 'a')
+		except:
+			self.log_file = open(os.path.join(self.args.log_dir, self.model_dir+'.csv'), 'w')
+			self.log_file.write('Epoch\t,avg_loss\t,avg_ler\t,valid_loss\t,valid_ler\t,time\n')
+
+		self.log_file.write(str(epoch)+'\t,' + str(loss)+'\t,' + str(ler) + '\t,' + str(valid_loss) + '\t,' + str(valid_ler) + '\t,' + str(time.time()-start_time) + '\n')
+		self.log_file.flush()
+
 
 	def acoustic_decode(self):
 		# Get test wavfile/label, 100 sets

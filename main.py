@@ -16,6 +16,7 @@ def main():
  	parser.add_argument('--train_lbl_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/trsp', help='data directory containing transcript')
  	parser.add_argument('--test_data_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/testset', help='data directory containing audio clip and transcription')
  	parser.add_argument('--files_dir', type=str, default='./files')
+	parser.add_argument('--log_dir', type=str, default='./logs')
  	parser.add_argument('--checkpoint_dir', type=str, default='checkpoint', help='To restore variables and model')
  	parser.add_argument('--state_size', type=int, default=512, help='size of RNN hidden state')
 	parser.add_argument('--maxgrad', type=float, default=5.0)
@@ -43,6 +44,8 @@ def main():
  	 	os.makedirs(args.checkpoint_dir)
  	if not os.path.exists(args.files_dir):
  	 	os.makedirs(args.files_dir)
+	if not os.path.exists(args.log_dir):
+		os.mkdir(args.log_dir)
 
  	run_config = tf.ConfigProto()
  	run_config.log_device_placement=False
@@ -59,12 +62,11 @@ def main():
  	 	# Training or Decoding
  	 	if args.is_train:
  	  		print('Training')
- 	  		model.train(args)
+ 	  		model.train()
  	 	# Decoding
  	 	else:
  	  		print('Decoding')
 	 	  	if args.mode == 0:
- 		   		#model.acoustic_decode('/home/yjhong89/asr_dataset/LibriSpeech/dev-clean/1272/135031/1272-135031-0008.wav')
  	   			model.acoustic_decode()
 			else :
  	   			# To load checkpoint, pass trained argument
