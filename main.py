@@ -24,7 +24,7 @@ def main():
  	parser.add_argument('--batch_size', type=int, default=50)
  	parser.add_argument('--num_epoch', type=int, default=1000)
  	parser.add_argument('--learning_rate', type=float, default=2e-4)
- 	parser.add_argument('--is_train', type=str2bool, default='t', choices=[0,1])
+ 	parser.add_argument('--is_train', type=str2bool, default='t')
  	parser.add_argument('--init_from', type=str2bool, default='t', help='Continue training from saved model') 
 #	 parser.add_argument('--partition_index', type=int, default=4000)
  	parser.add_argument('--save_interval', type=int, default=3)
@@ -63,13 +63,12 @@ def main():
  	 	# Decoding
  	 	else:
  	  		print('Decoding')
- 	  	if args.mode == 0:
- 	   		#model.acoustic_decode('/home/yjhong89/asr_dataset/LibriSpeech/dev-clean/1272/135031/1272-135031-0008.wav')
- 	   		model.acoustic_decode()
- 	  	else :
- 	   		# To load checkpoint, pass trained argument
- 	   		model.args.batch_size=32
- 	   		model.next_label_prediction()
+	 	  	if args.mode == 0:
+ 		   		#model.acoustic_decode('/home/yjhong89/asr_dataset/LibriSpeech/dev-clean/1272/135031/1272-135031-0008.wav')
+ 	   			model.acoustic_decode()
+			else :
+ 	   			# To load checkpoint, pass trained argument
+				model.args.batch_size=32
     
 def str2bool(v):
 	if v.lower() in ('yes', 'y', 'true', 't', 1):

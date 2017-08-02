@@ -277,8 +277,8 @@ class CTC_Model():
 		test_wav = for_test.mel_freq
 		test_lbl = for_test.target_label
 		# For placeholder
-		test_wav_padded, test_wav_length = SpeechLoader.pad_sequences(test_wav)
-		test_sparse_lbl = SpeechLoader.sparse_tensor_form(test_lbl)
+		test_wav_padded, test_wav_length = pad_sequences(test_wav)
+		test_sparse_lbl = sparse_tensor_form(test_lbl)
 		
 		self.args.dropout = False
 		self.sess.run(tf.global_variables_initializer())
