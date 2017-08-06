@@ -160,13 +160,13 @@ class CTC_Model():
 				batch_wav = batch_wave[batch_idx]
 				# pad input array to the same length(maximum length)
 				padded_batch_wav, original_batch_length = pad_sequences(batch_wav)
-			    # target_label is numpy array 
+				# target_label is numpy array 
 				batch_lbl = batch_label[batch_idx]
-			    # Make target to sparse tensor form to apply to ctc functions
+				# Make target to sparse tensor form to apply to ctc functions
 				sparse_batch_lbl = sparse_tensor_form(batch_lbl)
 				feed = {self.input_data: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
 				tr_step_loss, tr_step_ler, _ = self.sess.run([self.loss, self.ler, self.train_op], feed_dict = feed)
-			    # Add summary
+				# Add summary
 				#self.writer.add_summary(summary_str, total_step)
 				train_loss += tr_step_loss*self.args.batch_size
 				train_ler += tr_step_ler*self.args.batch_size
