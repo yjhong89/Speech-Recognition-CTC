@@ -59,12 +59,12 @@ class CTC_Model():
 		
 		# Define softmax parameters, Need each weight parameters for forward and backward(bidirectional rnn outputs)
 		with tf.variable_scope('softmax'):
-		 	self.bias = tf.get_variable('softmax_b', [args.num_classes], initializer = tf.constant_initializer(0))
-		 	self.weight_fw = tf.get_variable('softmax_w_fw', [args.state_size, args.num_classes])
-		 	self.weight_bw = tf.get_variable('softmax_w_bw', [args.state_size, args.num_classes])
+		 	self.bias = tf.get_variable('softmax_b', [self.args.num_classes], initializer = tf.constant_initializer(0))
+		 	self.weight_fw = tf.get_variable('softmax_w_fw', [self.args.state_size, self.args.num_classes])
+		 	self.weight_bw = tf.get_variable('softmax_w_bw', [self.args.state_size, self.args.num_classes])
 		self.logits = tf.matmul(self.rnn_output_fw, self.weight_fw) + tf.matmul(self.rnn_output_bw, self.weight_bw) + self.bias
 		# Reshaping logits to original shape
-		self.logits_reshaped = tf.reshape(self.logits, [self.batch_s, -1, args.num_classes])
+		self.logits_reshaped = tf.reshape(self.logits, [self.batch_s, -1, self.args.num_classes])
 		# Getting probabilities for each label
 		self.probability = tf.nn.softmax(self.logits_reshaped)
 		self.prob_summary = histogram_summary('Probs for each label', self.probability)
