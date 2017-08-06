@@ -40,7 +40,7 @@ class CTC_Model():
 			self.cell = tf.nn.rnn_cell.DropoutWrapper(self.cell, output_keep_prob=args.keep_prob)
 	
 		# batch_size, max_stepsize can vary along examples
-		self.input_data = tf.placeholder(tf.float32, [None, None, args.num_features])
+		self.input_data = tf.placeholder(tf.float32, [None, None, self.args.num_features])
 		# Need Sparse tensor representation for ctc calculation
 		self.targets = tf.sparse_placeholder(tf.int32)
 		# [batch_size]
@@ -64,20 +64,20 @@ class CTC_Model():
 		 	self.weight_bw = tf.get_variable('softmax_w_bw', [args.state_size, args.num_classes])
 		self.logits = tf.matmul(self.rnn_output_fw, self.weight_fw) + tf.matmul(self.rnn_output_bw, self.weight_bw) + self.bias
 		# Reshaping logits to original shape
-		self.logits = tf.reshape(self.logits, [self.batch_s, -1, args.num_classes])
+		self.logits_reshaped = tf.reshape(self.logits, [self.batch_s, -1, args.num_classes])
 		# Getting probabilities for each label
-		self.probability = tf.nn.softmax(self.logits)
+		self.probability = tf.nn.softmax(self.logits_reshaped)
 		self.prob_summary = histogram_summary('Probs for each label', self.probability)
 		
 		# Time major is True, ctc function inputs supposed to have a shape of [max_step_size, batch_size, num_classes]
-		self.logits = tf.transpose(self.logits, [1,0,2])
+		self.logits_timemajor = tf.transpose(self.logits_reshaped, [1,0,2])
 		
-		self.loss_function = tf.nn.ctc_loss(self.logits, self.targets, self.seq_len, preprocess_collapse_repeated=False, ctc_merge_repeated=True)
+		self.loss_function = tf.nn.ctc_loss(self.logits_timemajor, self.targets, self.seq_len)
 		self.loss = tf.reduce_mean(self.loss_function)
 		self.loss_summary = scalar_summary('ctc loss', self.loss)
 		 
 		#self.optimizer = tf.train.AdamOptimizer(args.learning_rate).minimize(self.loss)
-		self.optimizer = tf.train.AdamOptimizer(args.learning_rate)
+		self.optimizer = tf.train.AdamOptimizer(self.args.learning_rate)
 		vrbs = tf.trainable_variables()
 		print('Trainable variables for ctc model')
 		for i in xrange(len(vrbs)):
@@ -87,7 +87,7 @@ class CTC_Model():
 		self.train_op = self.optimizer.apply_gradients(zip(grads, vrbs))
 		
 		# decoded is sparse tensor form = indices, values, shape
-		self.decoded, self.log_prob = tf.nn.ctc_greedy_decoder(self.logits, self.seq_len)
+		self.decoded, self.log_prob = tf.nn.ctc_greedy_decoder(self.logits_timemajor, self.seq_len)
 		# tf.edit_distances requires sparse tensor for both arguments
 		self.ler = tf.reduce_mean(tf.edit_distance(tf.cast(self.decoded[0], tf.int32), self.targets))
 		self.ler_summary = scalar_summary('LER', self.ler)
@@ -138,21 +138,20 @@ class CTC_Model():
 		   	# Newly load new data
 		   	if datamove_flag:
 				print('Loading dataset')
-				wav_input = np.load(os.path.join(self.args.train_wav_dir, 'waves_{}.npy'.format(partition_idx)))
-				trg_label = np.load(os.path.join(self.args.train_lbl_dir, 'trans_{}.npy'.format(partition_idx)))
-				self.wav_input = wav_input[:3500]
-				self.trg_label = trg_label[:3500]
-				valid_wav_input = wav_input[3500:]
-				valid_trg_label = trg_label[3500:]
+				wav_input = np.load(os.path.join('/home/yjhong89/asr_dataset/ldc', 'waves_{}.npy'.format(partition_idx)))
+				trg_label = np.load(os.path.join('/home/yjhong89/asr_dataset/ldc', 'trans_{}.npy'.format(partition_idx)))
+				self.wav_input = wav_input[:15]
+				self.trg_label = trg_label[:15]
+				valid_wav_input = wav_input[15:]
+				valid_trg_label = trg_label[15:]
 				print('%d-th 4000 dataset loaded with %d training data, %d validation data' % (partition_idx+1, len(self.wav_input), len(valid_wav_input)))
 				data_length = len(self.wav_input)
 				trainingsteps_per_epoch = data_length // self.args.batch_size    
 				datamove_flag = 0
 		   
-			shuffle_index = np.random.permutation(3500)
+			shuffle_index = np.random.permutation(15)
 		   	batch_wave = self.wav_input[shuffle_index]
 		   	batch_label = self.trg_label[shuffle_index]
-			print('Shape of batches %s, %s' % (batch_wave.shape, batch_label.shape))
 		
 		   	for tr_step in xrange(trainingsteps_per_epoch):
 				s_time = time.time()
@@ -166,7 +165,7 @@ class CTC_Model():
 			    # Make target to sparse tensor form to apply to ctc functions
 				sparse_batch_lbl = sparse_tensor_form(batch_lbl)
 				feed = {self.input_data: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
-				tr_step_loss, tr_step_ler, _ = self.sess.run([self.loss, self.ler,  self.train_op], feed_dict = feed)
+				tr_step_loss, tr_step_ler, _ = self.sess.run([self.loss, self.ler, self.train_op], feed_dict = feed)
 			    # Add summary
 				#self.writer.add_summary(summary_str, total_step)
 				train_loss += tr_step_loss*self.args.batch_size
@@ -194,11 +193,11 @@ class CTC_Model():
 				valid_ler += valid_ler_
 			print('Validation error, Loss : %3.3f, LabelError : %3.3f' % (valid_loss / valid_tr_step, valid_ler / valid_tr_step))
 		   	if index == self.loaded_epoch:
-		   		best_valid_loss = valid_loss   
+		   		best_valid_loss = valid_loss / valid_tr_step 
 		
-		   	if valid_loss < best_valid_loss:
-				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss))
-				best_valid_loss = valid_loss
+		   	if (valid_loss / valid_tr_step) < best_valid_loss:
+				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss / valid_tr_step))
+				best_valid_loss = valid_loss / valid_tr_step
 				overfit_index = 0
 			else:	
 				overfit_index += 1   	
@@ -271,11 +270,12 @@ class CTC_Model():
 
 	def write_log(self, epoch, loss, ler, valid_loss, valid_ler, start_time):
 		print('Write logs..')
-		try:
-			self.log_file = open(os.path.join(self.args.log_dir, self.model_dir+'.csv'), 'a')
-		except:
-			self.log_file = open(os.path.join(self.args.log_dir, self.model_dir+'.csv'), 'w')
+		log_path = os.path.join(self.args.log_dir, self.model_dir+'.cvs')
+		if not os.path.exists(log_path):
+			self.log_file = open(log_path, 'w')
 			self.log_file.write('Epoch\t,avg_loss\t,avg_ler\t,valid_loss\t,valid_ler\t,time\n')
+		else:
+			self.log_file = open(log_path, 'a')
 
 		self.log_file.write(str(epoch)+'\t,' + str(loss)+'\t,' + str(ler) + '\t,' + str(valid_loss) + '\t,' + str(valid_ler) + '\t,' + str(time.time()-start_time) + '\n')
 		self.log_file.flush()
