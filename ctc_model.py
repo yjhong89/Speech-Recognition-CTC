@@ -178,11 +178,11 @@ class CTC_Model():
 
 		   	valid_loss = 0
 		   	valid_ler = 0
-		   	valid_tr_step = len(valid_wav_input) // self.args.batch_size
+		   	valid_tr_step = len(valid_wav_input) // 100
 		
 		   	for valid_step in xrange(valid_tr_step):
-				valid_batch_wav = valid_wav_input[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
-				valid_batch_lbl = valid_trg_label[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
+				valid_batch_wav = valid_wav_input[valid_step*100:(valid_step+1)*100]
+				valid_batch_lbl = valid_trg_label[valid_step*100:(valid_step+1)*100]
 				padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
 				valid_lbl = sparse_tensor_form(valid_batch_lbl)
 		    
