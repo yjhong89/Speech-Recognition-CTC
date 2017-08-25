@@ -59,9 +59,9 @@ class CTC_Model():
 		
 		# Define softmax parameters, Need each weight parameters for forward and backward(bidirectional rnn outputs)
 		with tf.variable_scope('softmax'):
-		 	self.bias = tf.get_variable('softmax_b', [self.args.num_classes], initializer = tf.constant_initializer(0))
-		 	self.weight_fw = tf.get_variable('softmax_w_fw', [self.args.state_size, self.args.num_classes])
-		 	self.weight_bw = tf.get_variable('softmax_w_bw', [self.args.state_size, self.args.num_classes])
+		 	self.bias = tf.get_variable('softmax_b', [self.args.num_classes], initializer=tf.constant_initializer(0))
+		 	self.weight_fw = tf.get_variable('softmax_w_fw', [self.args.state_size, self.args.num_classes], initializer=tf.truncated_normal_initializer(stddev=0.02))
+		 	self.weight_bw = tf.get_variable('softmax_w_bw', [self.args.state_size, self.args.num_classes], initializer=tf.truncated_normal_initializer(stddev=0.02))
 		self.logits = tf.matmul(self.rnn_output_fw, self.weight_fw) + tf.matmul(self.rnn_output_bw, self.weight_bw) + self.bias
 		# Reshaping logits to original shape
 		self.logits_reshaped = tf.reshape(self.logits, [self.batch_s, -1, self.args.num_classes])
@@ -72,7 +72,7 @@ class CTC_Model():
 		# Time major is True, ctc function inputs supposed to have a shape of [max_step_size, batch_size, num_classes]
 		self.logits_timemajor = tf.transpose(self.logits_reshaped, [1,0,2])
 		
-		self.loss_function = tf.nn.ctc_loss(self.logits_timemajor, self.targets, self.seq_len)
+		self.loss_function = tf.nn.ctc_loss(labels=self.targets, inputs=self.logits_timemajor, sequence_length=self.seq_len )
 		self.loss = tf.reduce_mean(self.loss_function)
 		self.loss_summary = scalar_summary('ctc loss', self.loss)
 		 
@@ -128,6 +128,11 @@ class CTC_Model():
 		overfit_index = 0
 		partition_idx = 0
 		datamove_flag = 1
+		# Loading Validation data
+		valid_wav_input = np.load(os.path.join(self.args.valid_data_dir, 'waves_0.npy'))
+		valid_trg_label = np.load(os.path.join(self.args.valid_data_dir, 'trans_0.npy'))
+		print('%d valid input and %d valid target set loaded' % (len(valid_wav_input), len(valid_trg_label))) 
+
 		for index in xrange(self.loaded_epoch, self.args.num_epoch):
 		   	# Shuffling datas
 			# shuffle index
@@ -138,21 +143,13 @@ class CTC_Model():
 		   	# Newly load new data
 		   	if datamove_flag:
 				print('Loading dataset')
-				wav_input = np.load(os.path.join('/home/yjhong89/asr_dataset/ldc', 'waves_{}.npy'.format(partition_idx)))
-				trg_label = np.load(os.path.join('/home/yjhong89/asr_dataset/ldc', 'trans_{}.npy'.format(partition_idx)))
-				self.wav_input = wav_input[:15]
-				self.trg_label = trg_label[:15]
-				valid_wav_input = wav_input[15:]
-				valid_trg_label = trg_label[15:]
-				print('%d-th 4000 dataset loaded with %d training data, %d validation data' % (partition_idx+1, len(self.wav_input), len(valid_wav_input)))
-				data_length = len(self.wav_input)
+				batch_wave = np.load(os.path.join(self.args.train_wav_dir, 'waves_{}.npy'.format(partition_idx)))
+				batch_label = np.load(os.path.join(self.args.train_lbl_dir, 'trans_{}.npy'.format(partition_idx)))
+				print('%d-th %d wave %d target dataset loaded' % (partition_idx+1, len(batch_wave), len(batch_label)))
+				data_length = len(batch_wave)
 				trainingsteps_per_epoch = data_length // self.args.batch_size    
 				datamove_flag = 0
 		   
-			shuffle_index = np.random.permutation(15)
-		   	batch_wave = self.wav_input[shuffle_index]
-		   	batch_label = self.trg_label[shuffle_index]
-		
 		   	for tr_step in xrange(trainingsteps_per_epoch):
 				s_time = time.time()
 				batch_idx = [i for i in xrange(self.args.batch_size*tr_step, (tr_step+1)*self.args.batch_size)]
@@ -178,6 +175,7 @@ class CTC_Model():
 		   	train_ler /= data_length
 		
 			print('Epoch %d/%d, Training loss : %3.3f, Training LabelError : %3.3f, Time per epoch: %3.3f' % (index+1, self.args.num_epoch, train_loss, train_ler, time.time() - start_time))
+
 		   	valid_loss = 0
 		   	valid_ler = 0
 		   	valid_tr_step = len(valid_wav_input) // self.args.batch_size
@@ -193,15 +191,15 @@ class CTC_Model():
 				valid_ler += valid_ler_
 			print('Validation error, Loss : %3.3f, LabelError : %3.3f' % (valid_loss / valid_tr_step, valid_ler / valid_tr_step))
 		   	if index == self.loaded_epoch:
-		   		best_valid_loss = valid_loss / valid_tr_step 
+		   		best_valid_loss = (valid_loss / valid_tr_step)
 		
 		   	if (valid_loss / valid_tr_step) < best_valid_loss:
 				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss / valid_tr_step))
-				best_valid_loss = valid_loss / valid_tr_step
+				best_valid_loss = (valid_loss / valid_tr_step)
 				overfit_index = 0
 			else:	
 				overfit_index += 1   	
-				print('Validation not improved for %d epochs' % (overfit_index))
+				print('Validation not improved from %3.4f at %d epochs' % (best_valid_loss, overfit_index))
 		     
 		   	if (np.mod(index+1, self.args.save_interval) == 0) or (index == self.args.num_epoch -1):
 				print('Save')
@@ -215,9 +213,11 @@ class CTC_Model():
 				self.save(index+1)
 				break
 		   
-		   	if overfit_index == 10:	
+		   	if overfit_index == 50:	
 				partition_idx += 1
 				print('Move to %d dataset' % (partition_idx+1))
+				# To distinguish between dataset
+				self.log_file.write('\n')
 				overfit_index = 0
 				datamove_flag = 1
 		   	if partition_idx == 50:
@@ -228,9 +228,9 @@ class CTC_Model():
 	@property
 	def model_dir(self):
 		if self.args.dropout == 0:
-			return '{}model_{}layers_{}state_{}batch_{}classes_ctc'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
+			return '{}_{}layers_{}state_{}batch_{}classes_ctc'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
 		else:
-			return '{}model_{}layers_{}state_{}batch_{}classes_dropout_ctc'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
+			return '{}_{}layers_{}state_{}batch_{}classes_dropout_ctc'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
   
 	def save(self, total_step):
   		model_name = 'acousticmodel' 
@@ -270,7 +270,7 @@ class CTC_Model():
 
 	def write_log(self, epoch, loss, ler, valid_loss, valid_ler, start_time):
 		print('Write logs..')
-		log_path = os.path.join(self.args.log_dir, self.model_dir+'.cvs')
+		log_path = os.path.join(self.args.log_dir, self.model_dir+'.csv')
 		if not os.path.exists(log_path):
 			self.log_file = open(log_path, 'w')
 			self.log_file.write('Epoch\t,avg_loss\t,avg_ler\t,valid_loss\t,valid_ler\t,time\n')
