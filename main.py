@@ -37,6 +37,7 @@ def main():
  	parser.add_argument('--keep_prob', type=float, default=0.9)
  	parser.add_argument('--seq_length', type=int, default=200, help='number of steps')
  	parser.add_argument('--mode', type=int, default=0, help='0 for ctc, 1 for clm', choices=[0,1])
+	parser.add_argument('--decode_mode', type=str2bool, default='n', help='beam decode with clm')
 	parser.add_argument('--alpha', type=float, default=2.0, help='language model weight')
 	parser.add_argument('--beta', type=float, default=1.5, help='insertion bonus')
 	parser.add_argument('--beam_width', type=int, default=128)
@@ -67,7 +68,10 @@ def main():
 		else:
 			print('Decoding')	
 			decoding = DECODER(args, sess, args.mode)
-			decoding.decode()
+			if args.decode_mode:
+				decoding.beam_decode()
+			else:
+				decoding.decode()
 
     
 def str2bool(v):
