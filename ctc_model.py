@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import numpy as np
-import time, os, math, shutil
+import time, os, shutil
 import tensorflow as tf
 from ops import *
 from data_loaders import *
@@ -124,9 +124,9 @@ class CTC_Model():
 					print('[Delete Error] %s - %s' % (e.filename, e.strerror))
 		
 		total_step = 1 
-		best_valid_loss = 0
+		best_valid_loss = 1000
 		overfit_index = 0
-		partition_idx = 0
+		partition_idx = 18 
 		datamove_flag = 1
 		# Loading Validation data
 		valid_wav_input = np.load(os.path.join(self.args.valid_data_dir, 'waves_0.npy'))
@@ -190,9 +190,6 @@ class CTC_Model():
 				valid_loss += valid_loss_
 				valid_ler += valid_ler_
 			print('Validation error, Loss : %3.3f, LabelError : %3.3f' % (valid_loss / valid_tr_step, valid_ler / valid_tr_step))
-		   	if index == self.loaded_epoch:
-		   		best_valid_loss = (valid_loss / valid_tr_step)
-		
 		   	if (valid_loss / valid_tr_step) < best_valid_loss:
 				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss / valid_tr_step))
 				best_valid_loss = (valid_loss / valid_tr_step)
@@ -220,9 +217,10 @@ class CTC_Model():
 				self.log_file.write('\n')
 				overfit_index = 0
 				datamove_flag = 1
-		   	if partition_idx == 50:
-				partition_idx = 0
-			print('%d epoch finished' % (index+1))
+				best_valid_loss = 1000
+#		   	if partition_idx == 50:
+#				partition_idx = 0
+#			print('%d epoch finished' % (index+1))
    
 
 	@property
@@ -280,195 +278,3 @@ class CTC_Model():
 		self.log_file.write(str(epoch)+'\t,' + str(loss)+'\t,' + str(ler) + '\t,' + str(valid_loss) + '\t,' + str(valid_ler) + '\t,' + str(time.time()-start_time) + '\n')
 		self.log_file.flush()
 
-
-	def acoustic_decode(self):
-		# Get test wavfile/label, 100 sets
-		for_test = SpeechLoader(self.args.test_data_dir, self.args.num_features, self.args.num_classes)  
-		test_wav = for_test.mel_freq
-		test_lbl = for_test.target_label
-		# For placeholder
-		test_wav_padded, test_wav_length = pad_sequences(test_wav)
-		test_sparse_lbl = sparse_tensor_form(test_lbl)
-		
-		self.args.dropout = False
-		self.sess.run(tf.global_variables_initializer())
-		# Load checkpoint path
-		if self.load():
-			print('Loaded checkpoint')
-		else:
-			print('Load failed')
-		  # For tensorboard
-		self.decode_summary = merge_summary([self.prob_summary])
-		self.decode_writer = SummaryWriter(os.path.join('./decode_ctc_logs', self.model_dir), self.sess.graph)
-		#  sample_rate, audio_data = wav.read(wavfile)
-		#  # [step_size, num_features]
-		#  audio_input = mfcc(audio_data, samplerate=sample_rate, numcep=self.args.num_features)
-		#  # Make batchsize 1 to feed input placeholder
-		#  placeholder_i = audio_input[np.newaxis, :]
-		#  # Normalize
-		#  placeholder_input = (placeholder_i - np.mean(placeholder_i))/np.std(placeholder_i)
-		#  # [batch_size,]
-		#  sequence_len = np.asarray([placeholder_input.shape[1]])
-		  
-		ctc_file = os.path.join(self.args.files_dir, self.model_dir) 
-		  
-		# Do not need to feed targets
-		feed = {self.input_data : test_wav_padded, self.targets:test_sparse_lbl, self.seq_len : test_wav_length}
-		# char_prob is ctc probability(emitting probability), has shape of batch_size, step_size, num_classes
-		# batch_size is 1 since just 1 wav file is acquired
-		# Decode has a sparse tensor form(indices, values, shape)
-		char_prob, decoded, summary_str, ler_ = self.sess.run([self.probability, self.decoded[0], self.decode_summary, self.ler], feed_dict = feed)
-		#self.decode_writer.add_summary(summary_str)
-		# Has a shape of batch_size, num_step, num_classes
-		char_prob = np.asarray(char_prob)
-		# To use at beam decoding
-		#  with open(ctc_file, 'w') as f:
-		#   cPickle.dump(char_prob, f)
-		#   f.close()
-		high_index = np.argmax(char_prob, axis=2)
-		print(decoded)
-		print('Label Error rate : %3.4f' % ler_)
-		# CTC decode function returns sparse tensor(indices, values, shape)
-		str_decoded = ''.join([chr(x) for x in np.asarray(decoded[1]) + SpeechLoader.FIRST_INDEX])
-		# Change to label using value tensor
-		if self.args.num_classes == 30:
-			print('Number of classes %d' % self.args.num_classes)
-			# 0:Space, 27:Apstr, 28:<EOS>, SpeechLoader.FIRSTINDEX=96(ord('a')=97), last class:blank
-			# For blank, last class
-			str_decoded = str_decoded.replace(chr(ord('z')+3), "'")
-			# For space
-			str_decoded = str_decoded.replace(chr(ord('a')-1), ' ')
-			# For Apstr
-			str_decoded = str_decoded.replace(chr(ord('z')+1), "'")
-			# For EOS
-			str_decoded = str_decoded.replace(chr(ord('z')+2), '.')
-			print(str_decoded)
-			#  for a in range(20):
-			#   high_prob_chr = [SpeechLoader.SPACE_TOKEN if x == ord('a')-1 else SpeechLoader.APSTR_TOKEN if x == ord('z')+1 else SpeechLoader.EOS_TOKEN if x == ord('z')+2 else SpeechLoader.BLANK_TOKEN if x == ord('z')+3 else chr(x) for x in high_index[a, :] + SpeechLoader.FIRST_INDEX]
-			#   print(high_prob_chr)
-			#  print('Decoded: %s' %str_decoded)
- 
-# def beam_decode(args, alpha=2, beta=1.5, beam_width=128):
-#  # Getting ctc probability and language probability dictionary
-#  # checkpoint for language model
-#  # Getting clm prob dictinary from lm checkpoint and label predict function
-#  # Would be {'prompt1': {prob_dict for prompt1}, 'prompt2': {prob_dict for prompt2}, .....}
-#  clm_file = os.path.join(args.files_dir, 'clm.pkl')  
-#  ctc_file = os.path.join(args.files_dir, 'ctc.pkl')
-#  # Loading ctc prob by loading pickle
-#  if not os.path.exists(ctc_file):
-#   print ('CTC file does not exist')
-#   print(os.path.abspath(ctc_file))
-#  if not os.path.exists(clm_file):
-#   print('CLM file does not exists')
-#   print(os.path.abspath(clm_file))
-#  # Has shape of 1 * num step * num classes
-#  with open(ctc_file, 'r') as f:
-#   ctc_prob = cPickle.load(f)
-#   f.close()
-#  with open(clm_file, 'r') as f:
-#   clm_dict = cPickle.load(f)
-#   f.close()
-# 
-#  # Make ctc dimension to num step * num classes(2 dimension)
-#  ctc_prob = np.squeeze(ctc_prob)
-#  # Get time step T
-#  T = ctc_prob.get_shape()[0].value
-#  # Get number of labels
-#  num_labels = ctc_prob.get_shape()[1].value
-#  # float('-inf') is used to represent log0
-#  init_hyp = Hypothesis(float('-inf'), float('-inf'), 0)
-#  
-#  # Dictionary which stores 'prefix:probability' not in beam
-#  beam_old = collections.defaultdict(init_hyp)
-#  # Beam cutoff, input would be prefix prob dictionary
-#  prev_prob = lambda x:Hypothesis.exp_sum_log(x[1].p_nb+x[1].p_b) + beta*x[1].prefix_len
-#  
-#  for t in xrange(T+1):
-#   # Initialize
-#   if t == 0:
-#    beam_cut = dict()
-#    # Empty prefix, store probability structure(class Hypothesis)
-#    # p_nb = 0, p_b = 1, prefix_len = 0
-#    # Empty tuple
-#    beam_cut[()] = Hypothesis(float('-inf'), 0, 0)
-#   else:
-#    print(t)
-#    print('-'*10)
-#    # Beam cutoff by beamwidth
-#    beam_sorted = sorted(beam.items(), key=prev_prob, reverse=True)
-#    # Would be of tuples so make it to dictionary
-#    beam_cut = dict(beam_sorted[:beam_width])
-#    beam_old = beam
-#   
-#   # Make dictionary for each timestep, beam <- {}
-#   beam = collections.defaultdict(init_hyp)
-#   # for prefix string in beam cutoff at 't-1'
-#   for pfx_str, hyps in beam_cut.items():
-#    new_hyp = beam[pfx_str]
-#    # Get prefix length
-#    pfx_len = hyps.prefix_len
-#    # p_total = p_nb + p_b
-#    p_tot = Hypothesis.exp_sum_log(hyps.p_b, hyps.p_nb)
-#    # if string is not empty 
-#    if pfx_len > 0:
-#     # Get last prefix, would be character -> need to change to index
-#     pfx_end = pfx_str[pfx_len-1]
-#     pfx_end_idx = Hypothesis.label_to_index(pfx_end)
-#     # p_nb update : p_nb(string, t) = p_nb(string, t-1) * ctc_prob(string end, t)
-#     new_hyp.p_nb = ctc_prob[t-1, pfx_end_idx] + hyps.p_nb
-#     # Handle repeat character collapsing
-#     # y_hat prefix of y with the last label removed
-#     y_hat = pfx_str[:pfx_len-1]
-#     # if y_hat in beam_cut
-#     if y_hat in beam_cut:
-#      prev_hyp = beam_cut[y_hat]
-#     else:
-#      prev_hyp = beam_old[y_hat]
-# 
-#     # Define extension probability of prefix string y by label k at time t
-#     # pr(k,y,t) = ctc_prob(k, t | x) * transision prob(clm prob) * collabse_prob
-#     # here is pr(pfx_end, y_hat, t)
-#     if len(y_hat) == 0:
-#      extension_prob = ctc_prob[t-1, pfx_end_idx]
-#     else:
-#      extension_prob = ctc_prob[t-1, pfx_end_idx] + clm_dict[y_hat[-1]][pfx_end]   
-#     # y_hat_pfx_end == pfx_str_end ===> handle repeat character
-#     # Need pfx_len above 1 to be meaningful
-#     if (pfx_len > 1) and (pfx_end == y_hat[-1]):
-#      extension_prob += prev_hyp.p_b
-#     else:
-#      extension_prob += Hypothesis.exp_sum_log(prev_hyp.p_nb, prev_hyp.p_b)
-#     # For non_blank 
-#     new_hyp.p_nb = exp_sum_log(new_hyp.p_nb, extension_prob)
-#     
-#    # Handling blank
-#    new_hyp.p_b = hyps.p_b + ctc_prob[t-1, 29]
-# 
-#    new_hyp.prefix_len = pfx_len
-#    # Add pfx_str to beam
-#    beam[pfx_str] = new_hyp
-#    
-#    # loop for character to extend prefix string except blank, blank is reserved as last class
-#    for k in xrange(num_labels-1):
-#     extension_hyp = Hypothesis(0,0,0)
-#     # We except blank
-#     extension_hyp.p_b = float('-inf')    
-#     extension_hyp.prefix_len = len(pfx_len) + 1
-#     # p_nb(y+k, t) <- pr(k, y, t)
-#     extended_pfx = tuple(list(pfx_str)+[k])
-#     extended_pfx_label = Hypothesis.index_to_label(k)
-#     extension_hyp.p_nb = ctc_prob[t-1, k] + alpha*clm_dict[pfx_str[-1]][extended_pfx_label]
-#     if pfx_len > 0:
-#      pfx_end = pfx_str[pfx_len-1]
-#      pfx_end_idx = Hypothesis.label_to_index(pfx_end)
-#      if pfx_end_idx == k:
-#       extension_hyp.p_nb += hyps.p_b
-#     else:
-#      extension_hyp.p_nb += p_tot
-# 
-#     beam[extended_pfx] = extension_hyp
-# 
-#  beam_final = sorted(beam.items(), key=prev_prob, reverse=True)
-#  return beam_final
-#     

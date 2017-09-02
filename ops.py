@@ -19,10 +19,10 @@ SummaryWriter = tf.summary.FileWriter
 # Hypothesis probability for decoding
 # All probabilities are assumes log prob
 class Hypothesis():
- 	def __init__(self, p_nb, p_b, prefix_idx):
- 	 	# probability for nonblank
+ 	def __init__(self, p_nb, p_b, prefix_len):
+ 	 	# probability for not ending blank
  	 	self.p_nb = p_nb
- 	 	# probability for blank
+ 	 	# probability for ending blank
  	 	self.p_b = p_b
  	 	self.prefix_len = prefix_len
 
@@ -37,28 +37,46 @@ class Hypothesis():
  	 	return math.log(exp_sum)
 
  	@staticmethod
- 	def label_to_index(character):
- 	 	if character == SpeechLoader.SPACE_TOKEN:
- 	 	 	index = 0
- 	 	elif character == SpeechLoader.APSTR_TOKEN:
- 	 	 	index = 1
- 	 	elif character == SpeechLoader.EOS_TOKEN:
- 	 		index = 2
- 	 	else:
- 	 		index = ord(character) - SpeechLoader.FIRST_INDEX
+ 	def label_to_index(character, num_label):
+		if num_label == 30:
+			if character == SpeechLoader.SPACE_TOKEN:
+ 	 	 		index = 0
+			elif character == SpeechLoader.APSTR_TOKEN:
+	 	 	 	index = 27
+ 		 	elif character == SpeechLoader.EOS_TOKEN:
+ 	 			index = 28
+	 	 	else:
+ 		 		index = ord(character) - SpeechLoader.FIRST_INDEX
+		elif num_label == 29:
+			if character == SpeechLoader.SPACE_TOKEN:
+ 	 	 		index = 0
+			elif character == SpeechLoader.APSTR_TOKEN:
+	 	 	 	index = 27
+	 	 	else:
+ 		 		index = ord(character) - SpeechLoader.FIRST_INDEX
  	 	return index
 
  	@staticmethod
- 	def index_to_label(idx):
+ 	def index_to_label(idx, num_label):
  		index = idx + SpeechLoader.FIRST_INDEX
- 		if index == ord('a') - 3:
- 	 		label = SpeechLoader.SPACE_TOKEN
- 		elif index == ord('a') - 2:
- 	  		label = SpeechLoader.APSTR_TOKEN
- 		elif index ==  ord('a') - 1:
- 			label = SpeechLoader.EOS_TOKEN
- 		else:
- 	 		label = ord(index)
+		if num_label == 30:
+			if index == ord('a') -1:
+	 			label = SpeechLoader.SPACE_TOKEN
+			elif index == ord('z') + 1:
+	  			label = SpeechLoader.APSTR_TOKEN
+			elif index ==  ord('a') + 2:
+				label = SpeechLoader.EOS_TOKEN
+			else:
+		 		label = ord(index)
+
+		elif num_label == 29:
+			if index == ord('a') -1:
+	 			label = SpeechLoader.SPACE_TOKEN
+			elif index == ord('z') + 1:
+	  			label = SpeechLoader.APSTR_TOKEN
+			else:
+		 		label = ord(index)
+
  	 	return label
 
 def word_error_rate(first_string, second_string):
@@ -201,10 +219,32 @@ def sparse_tensor_form(sequences):
   	indices = np.asarray(indices)
   	values = np.asarray(values)
   	# Python max intenal function : max(0) returns each column max, max(1) returns each row max
-  	# Need blankes '[]' because it is array, if there is not, it does not a shape ()
+  	# Need '[]' because it is array, if there is not, it does not a shape ()
   	shape = np.asarray([len(sequences), indices.max(0)[1]+1])
 
   	return indices, values, shape
+
+def reverse_sparse_tensor(sparse_t):
+	'''
+		Input : sparse tensor (indices, value, shape)
+	'''
+	sequences = list()
+	indices = sparse_t[0]
+	value = sparse_t[1]
+	shape = sparse_t[2]
+		
+	start = 0
+	# shape[0] : number of sequence
+	for i in xrange(shape[0]):	
+		# Get i-th sequence index
+		seq_length = len(filter(lambda x: x[0] == i, indices))
+		# Use append method instead of extend method
+		# Since extend method returns each element iteratively so each element is not seperated
+		sequences.append(np.asarray(value[start:(start+seq_length)]))
+		start += seq_length
+
+	return sequences
+
 
 def pad_sequences(sequences, max_len=None, padding='post', truncated='post', values=0):
   	''' Pad each sequences to have same length to max_len
@@ -256,21 +296,31 @@ def pad_sequences(sequences, max_len=None, padding='post', truncated='post', val
 
 
 if __name__ == '__main__':
- '''
-  Checking function 
- '''
-# a,b,c = SpeechLoader.sparse_tensor_form(asr.target_label)
-# print a,b,c
-
-# timestep = np.random.randint(0,10, (3,))
-# i = np.asarray([np.random.randint(0,10,(t, 13)) for t in timestep])
-# x,y = SpeechLoader.pad_sequences(i)
-# print x,y
-# print type(y), y.shape
-
-# f = ''
-# s = 'who is there'
-# print  chr_error_rate(f,s)
+	'''
+		Checking function 
+	'''
+	a = np.array([1,2,3,4])
+	b = np.array([5,6,7])
+	c = np.array([8,9])
+	d = [a,b,c]
+	d = np.asarray(d)
+	print(a,b,c,d)
+	e = sparse_tensor_form(d)
+	print(e[0], e[1], e[2])
+	f = reverse_sparse_tensor(e)
+	print(f)
+	# a,b,c = SpeechLoader.sparse_tensor_form(asr.target_label)
+	# print a,b,c
+	
+	# timestep = np.random.randint(0,10, (3,))
+	# i = np.asarray([np.random.randint(0,10,(t, 13)) for t in timestep])
+	# x,y = SpeechLoader.pad_sequences(i)
+	# print x,y
+	# print type(y), y.shape
+	
+	# f = ''
+	# s = 'who is there'
+	# print  chr_error_rate(f,s)
 
 
 

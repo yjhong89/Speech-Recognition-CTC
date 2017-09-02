@@ -7,6 +7,7 @@ import argparse, time, os
 import collections, cPickle
 from ops import *
 from ctc_model import CTC_Model
+from decoder import DECODER
 #from clm_model import CLM_Model
 
 
@@ -24,8 +25,8 @@ def main():
  	parser.add_argument('--num_layers', type=int, default=3, help='number of layers in RNN')
  	parser.add_argument('--model', type=str, default='lstm', choices=['lstm', 'lnlstm', 'gru'])
  	parser.add_argument('--batch_size', type=int, default=2)
- 	parser.add_argument('--num_epoch', type=int, default=1000)
- 	parser.add_argument('--learning_rate', type=float, default=5e-3)
+ 	parser.add_argument('--num_epoch', type=int, default=2000)
+ 	parser.add_argument('--learning_rate', type=float, default=5e-4)
  	parser.add_argument('--is_train', type=str2bool, default='t')
  	parser.add_argument('--init_from', type=str2bool, default='t', help='Continue training from saved model') 
  	parser.add_argument('--save_interval', type=int, default=5)
@@ -36,9 +37,12 @@ def main():
  	parser.add_argument('--keep_prob', type=float, default=0.9)
  	parser.add_argument('--seq_length', type=int, default=200, help='number of steps')
  	parser.add_argument('--mode', type=int, default=0, help='0 for ctc, 1 for clm', choices=[0,1])
+	parser.add_argument('--alpha', type=float, default=2.0, help='language model weight')
+	parser.add_argument('--beta', type=float, default=1.5, help='insertion bonus')
+	parser.add_argument('--beam_width', type=int, default=128)
 
  	args = parser.parse_args()
- 	print args
+ 	print(args)
 
  	if not os.path.exists(args.checkpoint_dir):
  	 	os.makedirs(args.checkpoint_dir)
@@ -52,25 +56,19 @@ def main():
  	run_config.gpu_options.allow_growth=True
 
  	with tf.Session(config=run_config) as sess:
- 	 	if args.mode == 0:
- 	  		model = CTC_Model(args, sess)
- 	 	elif args.mode == 1 and args.is_train == 0:
- 	  		model = CLM_Model(args, sess, infer=True)
- 	 	elif args.mode == 1 and args.is_train == 1:
- 	  		model = CLM_Model(args, sess, infer=False)
- 	 
- 	 	# Training or Decoding
- 	 	if args.is_train:
- 	  		print('Training')
- 	  		model.train()
- 	 	# Decoding
- 	 	else:
- 	  		print('Decoding')
-	 	  	if args.mode == 0:
- 	   			model.acoustic_decode()
-			else :
- 	   			# To load checkpoint, pass trained argument
-				model.args.batch_size=32
+		if args.is_train:
+			print('Training')
+			if args.mode == 0:
+				model = CTC_Model(args, sess)
+				model.train()
+			else:
+				model = CLM_Model(args, sess, infer=True)
+				model.train()
+		else:
+			print('Decoding')	
+			decoding = DECODER(args, sess, args.mode)
+			decoding.decode()
+
     
 def str2bool(v):
 	if v.lower() in ('yes', 'y', 'true', 't', 1):
