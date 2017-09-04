@@ -126,7 +126,7 @@ class CTC_Model():
 		total_step = 1 
 		best_valid_loss = 1000
 		overfit_index = 0
-		partition_idx = 18 
+		partition_idx = self.args.start_data 
 		datamove_flag = 1
 		# Loading Validation data
 		valid_wav_input = np.load(os.path.join(self.args.valid_data_dir, 'waves_0.npy'))

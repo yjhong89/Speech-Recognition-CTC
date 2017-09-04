@@ -41,6 +41,7 @@ def main():
 	parser.add_argument('--alpha', type=float, default=2.0, help='language model weight')
 	parser.add_argument('--beta', type=float, default=1.5, help='insertion bonus')
 	parser.add_argument('--beam_width', type=int, default=128)
+	parser.add_argument('--start_data', type=int, default=20)
 
  	args = parser.parse_args()
  	print(args)

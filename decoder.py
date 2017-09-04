@@ -59,7 +59,7 @@ class DECODER():
 				# 0:Space, 27:Apstr, last class:blank
 				str_decoded[i] = str_decoded[i].replace(chr(ord('z')+2), "")
 				str_decoded[i] = str_decoded[i].replace(chr(ord('a')-1), ' ')
-				str_decoded[i] = str_decoded[i].replace(chr(ord('z')+1), "'"
+				str_decoded[i] = str_decoded[i].replace(chr(ord('z')+1), "'")
 			print(str_decoded[i])
 				
 
@@ -121,7 +121,7 @@ class DECODER():
 						pfx_end = pfx_str[pfx_len - 1]
 						pfx_end_idx = Hypothesis.label_to_index(pfx_end)
 						# p_nb update : p_nb(string, t) = p_nb(string, t-1) * ctc_prob(string end, t), log makes multiplying into summation
-						new_hyp.p_nb = ctc_p[t-1], pfx_end_idx] + hyps.p_nb	
+						new_hyp.p_nb = ctc_p[t-1, pfx_end_idx] + hyps.p_nb	
 			 			# Handle repeat character collapsing
 						# y_hat prefix of y with the last label lamoved
 						y_hat = pfx_str[:pfx_len-1]
@@ -152,7 +152,7 @@ class DECODER():
 
 					# Handling blanks
 					# p_b at t = ctc_prob(blank, t) * pr(y, t-1)
-					new_hyp.p_b = Hypothesis.exp_sum_log(p_total, ctc_p[t-1, self.args.num_classes-1)		
+					new_hyp.p_b = Hypothesis.exp_sum_log(p_total, ctc_p[t-1, self.args.num_classes-1])		
 					# 't-1' to 't' but length remains same since repeated character or blank
 					new_hyp.prefix_len = pfx_len
 					beam[pfx_str] = new_hyp
