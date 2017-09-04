@@ -15,29 +15,26 @@ class CTC_Model():
 		self.sess = sess
 	  # Cell unit selection
 		if args.model == 'rnn':
-			cell = tf.nn.rnn_cell.BasicRNNCell(args.state_size)
+			cell = tf.contrib.rnn.BasicRNNCell(self.args.state_size)
 		elif args.model == 'gru':
-			cell = tf.nn.rnn_cell.GRUCell(args.state_size)
+			cell = tf.contrib.rnn.GRUCell(self.args.state_size, reuse=tf.get_variable_scope().reuse)
 			# state_is_tuple is only supported for LSTM Cell, returned state is a 2 tuple of (c, h)
 			# It makes easy wrap up multiple layer cell
 		elif args.model == 'lstm':
-			cell = tf.nn.rnn_cell.LSTMCell(args.state_size, state_is_tuple=True)
+			cell = tf.contrib.rnn.LSTMCell(self.args.state_size, state_is_tuple=True, reuse=tf.get_variable_scope().reuse)
 		  # Layer Normalized LSTM
 		elif args.model == 'lnlstm':
-			cell = LayerNormalizedLSTM(args.state_size)
+			cell = tf.contrib.rnn.LayerNormBasicLSTM(self.args.state_size, layer_norm=True, reuse=tf.get_variable_scope().reuse)
 		else:
-			raise Exception("Model type not supported : {}".format(args.model))
+			raise Exception("Model type not supported : {}".format(self.args.model))
 	 
-		if args.dropout is True :
-			cell = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=args.keep_prob)
+		if args.dropout is True:
+			cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=args.keep_prob)
 	
-		if args.model == 'lstm' or args.model == 'lnlstm':
-			self.cell = tf.nn.rnn_cell.MultiRNNCell([cell] * args.num_layers, state_is_tuple=True)
-		else:
-			self.cell = tf.nn.rnn_cell.MultiRNNCell([cell] * args.num_layers)
+		self.cell = tf.contrib.rnn.MultiRNNCell([cell for _ in range(self.args.num_layers)])
 	
 		if args.dropout is True:
-			self.cell = tf.nn.rnn_cell.DropoutWrapper(self.cell, output_keep_prob=args.keep_prob)
+			self.cell = tf.contrib.rnn.DropoutWrapper(self.cell, output_keep_prob=args.keep_prob)
 	
 		# batch_size, max_stepsize can vary along examples
 		self.input_data = tf.placeholder(tf.float32, [None, None, self.args.num_features])
