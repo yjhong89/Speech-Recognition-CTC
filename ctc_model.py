@@ -6,35 +6,23 @@ import numpy as np
 import time, os, shutil
 import tensorflow as tf
 from ops import *
-from data_loaders import *
+#from data_loaders import *
 
 
 class CTC_Model():
 	def __init__(self, args, sess):
 		self.args = args
 		self.sess = sess
-	  # Cell unit selection
-		if args.model == 'rnn':
-			cell = tf.contrib.rnn.BasicRNNCell(self.args.state_size)
-		elif args.model == 'gru':
-			cell = tf.contrib.rnn.GRUCell(self.args.state_size, reuse=tf.get_variable_scope().reuse)
-			# state_is_tuple is only supported for LSTM Cell, returned state is a 2 tuple of (c, h)
-			# It makes easy wrap up multiple layer cell
-		elif args.model == 'lstm':
-			cell = tf.contrib.rnn.LSTMCell(self.args.state_size, state_is_tuple=True, reuse=tf.get_variable_scope().reuse)
-		  # Layer Normalized LSTM
-		elif args.model == 'lnlstm':
-			cell = tf.contrib.rnn.LayerNormBasicLSTM(self.args.state_size, layer_norm=True, reuse=tf.get_variable_scope().reuse)
+	 
+		if self.args.model == 'GRU':
+			self.cell = tf.contrib.rnn.MultiRNNCell([self.GRU() for _ in range(self.args.num_layers)])
+		elif self.args.model == 'LSTM':
+			self.cell = tf.contrib.rnn.MultiRNNCell([self.LSTM() for _ in range(self.args.num_layers)])
 		else:
 			raise Exception("Model type not supported : {}".format(self.args.model))
-	 
-		if args.dropout is True:
-			cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=args.keep_prob)
-	
-		self.cell = tf.contrib.rnn.MultiRNNCell([cell for _ in range(self.args.num_layers)])
 	
 		if args.dropout is True:
-			self.cell = tf.contrib.rnn.DropoutWrapper(self.cell, output_keep_prob=args.keep_prob)
+			self.cell = tf.contrib.rnn.DropoutWrapper(self.cell, output_keep_prob=self.args.keep_prob)
 	
 		# batch_size, max_stepsize can vary along examples
 		self.input_data = tf.placeholder(tf.float32, [None, None, self.args.num_features])
@@ -50,9 +38,8 @@ class CTC_Model():
 		self.rnn_output_fw = tf.reshape(self.rnn_output_fw, [-1, args.state_size])
 		self.rnn_output_bw = tf.reshape(self.rnn_output_bw, [-1, args.state_size])  
 		# Getting input tensor size
-		self.shape = tf.shape(self.input_data)
-		self.batch_s = self.shape[0]
-		self.step_s = self.shape[1]
+		self.batch_s = tf.shape(self.input_data)[0]
+		self.step_s = tf.shape(self.input_data)[1]
 		
 		# Define softmax parameters, Need each weight parameters for forward and backward(bidirectional rnn outputs)
 		with tf.variable_scope('softmax'):
@@ -92,6 +79,18 @@ class CTC_Model():
 		
 		# Declare saver to save trained variable
 		self.saver = tf.train.Saver()
+
+	def GRU(self):
+		cell = tf.contrib.rnn.GRUCell(self.args.state_size, reuse=tf.get_variable_scope().reuse)
+		if self.args.dropout:
+			cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.args.keep_prob, input_size=self.args.num_features)
+		return cell
+	def LSTM(self):
+		cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.args.state_size, layer_norm=self.args.layer_norm, reuse=tf.get_variable_scope().reuse)
+		if self.args.dropout:
+			cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.args.keep_prob, input_size=self.args.num_Features)
+		return cell
+
 	
 	def __str__(self):
 		return 'This model has input size {}, state size {}, {} of classes, () timesteps'.format(self.args.num_features, self.args.state_size, self.args.num_classes, self.step_s)

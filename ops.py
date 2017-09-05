@@ -4,8 +4,6 @@
 import numpy as np
 import tensorflow as tf
 import os, math
-import scipy.io.wavfile as wav
-from python_speech_features import mfcc
 import codecs
 import collections
 from six.moves import cPickle
