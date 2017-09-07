@@ -13,10 +13,10 @@ from decoder import DECODER
 
 def main():
  	parser = argparse.ArgumentParser()
- 	parser.add_argument('--train_wav_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/wave', help='data directory containing audio clip')
- 	parser.add_argument('--train_lbl_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/trsp', help='data directory containing transcript')
- 	parser.add_argument('--test_data_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/testset', help='data directory containing audio clip and transcription')
-	parser.add_argument('--valid_data_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/validation')
+ 	parser.add_argument('--train_wav_dir', type=str, default='/home/yjhong89/etri/wave', help='data directory containing audio clip')
+ 	parser.add_argument('--train_lbl_dir', type=str, default='/home/yjhong89/etri/trsp', help='data directory containing transcript')
+ 	parser.add_argument('--test_data_dir', type=str, default='/home/yjhong89/etri/test', help='data directory containing audio clip and transcription')
+	parser.add_argument('--valid_data_dir', type=str, default='/home/yjhong89/etri/validation')
  	parser.add_argument('--files_dir', type=str, default='./files')
 	parser.add_argument('--log_dir', type=str, default='./logs')
  	parser.add_argument('--checkpoint_dir', type=str, default='checkpoint', help='To restore variables and model')
@@ -28,7 +28,7 @@ def main():
  	parser.add_argument('--num_epoch', type=int, default=2000)
  	parser.add_argument('--learning_rate', type=float, default=5e-4)
  	parser.add_argument('--is_train', type=str2bool, default='t')
-	parser.add_argument('--layer_norm', type=str2bool, default='t')
+	parser.add_argument('--layer_norm', type=str2bool, default='n')
  	parser.add_argument('--init_from', type=str2bool, default='t', help='Continue training from saved model') 
  	parser.add_argument('--save_interval', type=int, default=5)
  	parser.add_argument('--num_features', type=int, default=39)
@@ -42,7 +42,7 @@ def main():
 	parser.add_argument('--alpha', type=float, default=2.0, help='language model weight')
 	parser.add_argument('--beta', type=float, default=1.5, help='insertion bonus')
 	parser.add_argument('--beam_width', type=int, default=128)
-	parser.add_argument('--start_data', type=int, default=20)
+	parser.add_argument('--start_data', type=int, default=0)
 
  	args = parser.parse_args()
  	print(args)

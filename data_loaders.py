@@ -228,3 +228,16 @@ class SpeechLoader():
 	   
 	  	return train_target
 
+	def save(self, save_idx, save_dir):
+		print('Save as numpy')
+		num_files = len(self.mel_req) // save_idx
+		for save_index in range(0, num_files):
+			np.save(os.path.join(save_dir, 'wave_{}.npy'.format(save_index+1)), self.mel_freq[save_index*save_idx, (save_index+1)*save_idx])
+			np.save(os.path.join(save_dir, 'tran_{}.npy'.format(save_index+1)), self.target_label[save_index*save_idx, (save_index+1)*save_idx])
+			print('{} data complete'.format(save_index+1)
+		print('Finish')
+		
+
+if __name__ == "__main__":
+	a = SpeechLoader('/home/yjhong89/trainingset', 39, 29)
+	a.save()
