@@ -154,7 +154,8 @@ class SpeechLoader():
 				wavname = a.split('-')[0]+a.split('-')[-1][:-4]
 				txtname = b.split('-')[0]+b.split('-')[-1][:-4]
 			if wavname == txtname:
-				print(wavname)
+				pass
+                                #print(wavname)
 		except:
 	   		raise Exception('Files do not match')
 	   
@@ -182,8 +183,7 @@ class SpeechLoader():
 	   		fs, au = wav.read(w)
 	   		# Extract Spectrum of audio inputs
 	   		melf = mfcc(au, samplerate = fs, numcep = self.num_features, winlen=0.025, winstep=0.01, nfilt=self.num_features)
-	   		print(melf.shape)
-	   		melf = (melf - np.mean(melf))/np.std(melf)
+	   		#melf = (melf - np.mean(melf))/np.std(melf)
 	   		self.mel_freq.append(melf)
 	   		melf_target = self.labelprocessing(l)
 	   		self.target_label.append(melf_target)
@@ -224,20 +224,19 @@ class SpeechLoader():
 	  # including space, apostrophe
 	  	elif self.num_classes == 29:
 	   		train_target = np.asarray([SpeechLoader.SPACE_INDEX if x == SpeechLoader.SPACE_TOKEN else SpeechLoader.APSTR_INDEX if x == SpeechLoader.APSTR_TOKEN else ord(x) - SpeechLoader.FIRST_INDEX for x in labelarray])
-	  		print(train_target)
 	   
 	  	return train_target
 
-	def save(self, save_idx, save_dir):
+	def save(self, save_idx):
 		print('Save as numpy')
-		num_files = len(self.mel_req) // save_idx
+		num_files = len(self.mel_freq) // save_idx
 		for save_index in range(0, num_files):
-			np.save(os.path.join(save_dir, 'wave_{}.npy'.format(save_index+1)), self.mel_freq[save_index*save_idx, (save_index+1)*save_idx])
-			np.save(os.path.join(save_dir, 'tran_{}.npy'.format(save_index+1)), self.target_label[save_index*save_idx, (save_index+1)*save_idx])
-			print('{} data complete'.format(save_index+1)
+			np.save('wave_{}.npy'.format(save_index+1), self.mel_freq[save_index*save_idx: (save_index+1)*save_idx])
+			np.save('tran_{}.npy'.format(save_index+1), self.target_label[save_index*save_idx: (save_index+1)*save_idx])
+			print('{} data complete'.format(save_index+1))
 		print('Finish')
 		
 
 if __name__ == "__main__":
 	a = SpeechLoader('/home/yjhong89/trainingset', 39, 29)
-	a.save()
+	a.save(1000)

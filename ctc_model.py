@@ -139,9 +139,9 @@ class CTC_Model():
 		   	# Newly load new data
 		   	if datamove_flag:
 				print('Loading dataset')
-				batch_wave = np.load(os.path.join(self.args.train_wav_dir, 'waves_{}.npy'.format(partition_idx)))
-				batch_label = np.load(os.path.join(self.args.train_lbl_dir, 'trans_{}.npy'.format(partition_idx)))
-				print('%d-th %d wave %d target dataset loaded' % (partition_idx+1, len(batch_wave), len(batch_label)))
+				batch_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_{}.npy'.format(partition_idx)))
+				batch_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_{}.npy'.format(partition_idx)))
+				print('%d-th %d wave %d target dataset loaded' % (partition_idx, len(batch_wave), len(batch_label)))
 				data_length = len(batch_wave)
 				trainingsteps_per_epoch = data_length // self.args.batch_size    
 				datamove_flag = 0
@@ -189,15 +189,14 @@ class CTC_Model():
 		   	if (valid_loss / valid_tr_step) < best_valid_loss:
 				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss / valid_tr_step))
 				best_valid_loss = (valid_loss / valid_tr_step)
+				# Save only when validation improved
+				print('Save')
+				sef.save(index+1)
 				overfit_index = 0
 			else:	
 				overfit_index += 1   	
 				print('Validation not improved from %3.4f at %d epochs' % (best_valid_loss, overfit_index))
 		     
-		   	if (np.mod(index+1, self.args.save_interval) == 0) or (index == self.args.num_epoch -1):
-				print('Save')
-				self.save(index+1)
-
 			self.write_log(index+1, train_loss, train_ler, valid_loss / valid_tr_step, valid_ler / valid_tr_step, start_time)
 
 		   	if train_ler < 1e-1 and valid_ler < 0.2:
