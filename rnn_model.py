@@ -9,7 +9,7 @@ from ops import *
 #from data_loaders import *
 
 
-class CTC_Model():
+class RNN_Model():
 	def __init__(self, args, sess):
 		self.args = args
 		self.sess = sess
@@ -191,7 +191,7 @@ class CTC_Model():
 				best_valid_loss = (valid_loss / valid_tr_step)
 				# Save only when validation improved
 				print('Save')
-				sef.save(index+1)
+				self.save(index+1)
 				overfit_index = 0
 			else:	
 				overfit_index += 1   	
@@ -205,7 +205,7 @@ class CTC_Model():
 				self.save(index+1)
 				break
 		   
-		   	if overfit_index == 50:	
+		   	if overfit_index == self.args.overfit_index:	
 				partition_idx += 1
 				print('Move to %d dataset' % (partition_idx+1))
 				# To distinguish between dataset
@@ -226,7 +226,7 @@ class CTC_Model():
 			return '{}_{}layers_{}state_{}batch_{}classes_dropout_ctc'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
   
 	def save(self, total_step):
-  		model_name = 'acousticmodel' 
+  		model_name = 'RNN' 
 		# checkpoint directory
 		checkpoint_dir = os.path.join(self.args.checkpoint_dir, self.model_dir)
 
@@ -241,7 +241,7 @@ class CTC_Model():
 		# checkpoint directory
 		checkpoint_dir = os.path.join(self.args.checkpoint_dir, self.model_dir)
 		# check model name
-		model_name = 'acousticmodel'
+		model_name = 'RNN'
 		# Restoring, the graph is exactly as it was when the variable were saved in prior run
 		# Return checkpointstate proto
 		ckpt = tf.train.get_checkpoint_state(checkpoint_dir)

@@ -292,6 +292,81 @@ def pad_sequences(sequences, max_len=None, padding='post', truncated='post', val
 
   	return x, each_timestep
 
+def conv1d(inputs, out_channels, filter_width = 2, stride = 1, data_format = 'NHWC', name = None, padding = 'VALID', activation = tf.nn.relu, normalization = None):
+    with tf.variable_scope(name):
+        # inputs : [batch, width, channel](1-D)
+        w = tf.get_variable('weight', shape=(filter_width, inputs.get_shape().as_list()[-1], out_channels), initializer=tf.contrib.layers.xavier_initializer())
+        b = tf.get_variable('bias', shape=(out_channels,), initializer=tf.constant_initializer(0))
+        # If data format 'NHWC' : [batch, in_width, in_channel]
+        # If data format 'NCHW' : [batch, in_channel, in_width]
+        outputs = tf.nn.conv1d(inputs, w, stride=stride, padding='VALID',data_format='NHWC')
+        weighted_sum = outputs + b
+        if normalization == 'ln':
+            outputs = tf.contrib.layers.layer_norm(weighted_sum, scope = 'ln')
+        if activation:
+            outputs = activation(outputs)
+        return outputs
+
+def dilated_conv1d(inputs, out_channels, filter_width = 2, padding='SAME', rate = 1, causal = True, name = None, activation = None, normalization = None):
+    with tf.variable_scope(name):
+        w = tf.get_variable(name='w', shape=(filter_width, inputs.get_shape().as_list()[-1], out_channels), initializer = tf.contrib.layers.xavier_initializer())
+        b = tf.get_variable(name='b', shape=(out_channels,), initializer=tf.constant_initializer(0.0))
+        # causal means output at time 't' only depends on its past and current 't', so pad only left side
+        # When causal, need to insert (filter_width - 1) zeros to left side of input
+        if causal:
+            # Padding 'Same' = with zero padding so make same with filter and input calculation dimension, so pad zeros with inputs
+            # Produce output of the same size as the input when stride = 1
+            # Padding 'Valid' = without padding, drop right most columns
+            # Produce output as 'filter size - 1'
+            pad_len = (filter_width-1) * rate
+            '''
+                tf.pad : 
+                    For each dimension D of input, paddings[D,0] indicates how many values to add 'before' the content of tensor in that dimension 'D'
+                    padding[D,1] indicates how many values to add 'after' the content of tensor in that dimension 'D'
+            '''
+            # In dimension '0'(batch axis) no padding
+            # In dimension '1'(input width) add value only before the content of tensor becuase it is causal
+            # In dimension '2'(in channel) no padding
+            inputs = tf.pad(inputs, [[0,0],[pad_len, 0], [0,0]])
+            '''
+                tf.nn.convolution : dilation_rate(Sequence of integers and each index of sequence represents filter axis)
+                    The effective filter size will be [filter_shape[i] + (filter_shape[i] - 1) * (rate[i] - 1)]
+                    obtained by inserting (rate[i] - 1] zeros between consecutive elements of the original filter
+                    Stridse must be 1 when rate is larger than 1
+            '''
+            # Here, dilation_rate = [rate], which represents insert zeros only filter`s 0 axis
+            outputs = tf.nn.convolution(inputs, w, dilation_rate = [rate], padding = 'VALID') + b
+        # Since non causal, pad zeors also to right part of input
+        else:
+            outputs = tf.nn.convolution(inputs, w, dilation_rate = [rate], padding = 'SAME') + b
+        if normalization == 'ln':
+            outputs = tf.contrib.layers.layer_norm(outputs, scope = 'ln')
+        if activation:
+            outputs = activation(outputs)
+    return outputs
+
+# Residual block implementation of wavenet(Figure 4 in 2.3/2.4)
+# Different parameters with different layers
+# Works better than relu activation for modeling audio signal
+def res_block(tensor, num_hidden, rate, causal, dilated_filter_width, normalization, activation, name=None):
+	# Gated Actiation Unit
+	if activation == 'gated_linear':
+		act = None
+	elif activation == 'gated_tanh':
+		act = tf.nn.tanh
+	with tf.variable_scope(name):
+		h_filter = dilated_conv1d(tensor, num_hidden, rate = rate, causal = causal, name = 'conv_filter', activation = act, normalization = normalization)
+		h_gate = dilated_conv1d(tensor, num_hidden, rate = rate, causal = causal, name = 'conv_gate', activation = tf.nn.sigmoid, normalization = normalization)
+		# Elementwise multiication
+		out = h_filter * h_gate    
+		# Generate residual part and skip part through 1*1 convolution
+		residual = conv1d(out,num_hidden, filter_width=1, activation=None, normalization=normalization, name='res_conv')   # (batch, width, num_hidden)
+		skip = conv1d(out,num_hidden, filter_width=1, activation=None, normalization=normalization, name='skip_conv')   # (batch, width, num_hidden)
+
+	# Return skip part and residual for next layer
+	return tensor + residual, skip
+
+
 
 if __name__ == '__main__':
 	'''
