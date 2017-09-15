@@ -68,7 +68,7 @@ class Wavenet_Model():
 		
 		total_step = 1
 		best_valid_loss = 1000
-		best_valid_cer = 1000
+		best_valid_ler = 1000
 		datamove_flag = 1
 		
 		for index in range(0, self.args.num_epoch):
