@@ -87,7 +87,7 @@ class Wavenet_Model():
 				wave_train = inputs_wave[:train_index]
 				label_train = inputs_label[:train_index] 
 				wave_valid = inputs_wave[train_index:len(inputs_wave)]
-				label_valid = inputs_wave[train_index:len(inputs_label)]
+				label_valid = inputs_label[train_index:len(inputs_label)]
 				datamove_flag = 0
 			# Permutation to get regularize effect
 			perm_index = np.random.permutation(len(wave_train))
@@ -148,7 +148,7 @@ class Wavenet_Model():
    
 
 	def evaluate(self, wave, label):
-		valid_cost = 0
+		valid_loss = 0
 		valid_ler = 0
 		valid_tr_step = len(wave) // self.args.batch_size
 		for valid_step in range(0, valid_tr_step):
@@ -156,10 +156,7 @@ class Wavenet_Model():
 			valid_batch_lbl = label[valid_step*self.args.batch_size : (valid_step+1)*self.args.batch_size]
 
 			padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
-			print(padded_valid_wav.shape)
-			print(padded_valid_length.shape)
 			sparse_valid_lbl = sparse_tensor_form(valid_batch_lbl)
-			print(sparse_valid_lbl)
 			valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict={self.inputs:padded_valid_wav, self.targets:sparse_valid_lbl, self.seq_len:padded_valid_length})
 			valid_loss += valid_loss_*self.args.batch_size
 			valid_ler += valid_ler_*self.args.batch_size

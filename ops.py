@@ -292,24 +292,6 @@ def pad_sequences(sequences, max_len=None, padding='post', truncated='post', val
 
   	return x, each_timestep
 
-def make_batch_sr(batch_in_list, batch_out_list):
-	feat_dim = batch_in_list[0].shape[1]
-	batch_size = batch_in_list.shape[0]
-	length = [batch_in_list[i].shape[0] for i in range(batch_size)]
-	max_dim = np.max(length)
-	length_label = [len(batch_out_list[i]) for i in range(batch_size)]
-	max_label_dim = np.max(length_label)
-	shape = [batch_size, max_label_dim]
-	indices = []
-	values = []
-	for i, seq in enumerate(batch_out_list):
-		indices.extend(zip([i]*len(seq), range(len(seq))))
-		values.extend(seq)
-	batch_in_pad = np.zeros(shape=[batch_size, max_dim, feat_dim], dtype=np.float32)
-	batch_out = tf.SparseTensorValue(indices, values,shape)
-	for i in range(batch_size):
-		batch_in_pad[i, 0:length[i], :] = batch_in_list[i]
-	return np.array(length), batch_in_pad, batch_out
 
 def conv1d(inputs, out_channels, filter_width = 2, stride = 1, name = None, activation = tf.nn.relu, normalization = None):
     with tf.variable_scope(name):
