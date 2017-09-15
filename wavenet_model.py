@@ -124,7 +124,7 @@ class Wavenet_Model():
 			
 			# Save only when validation improved
 			if valid_ler < best_valid_ler:
-				print('Validation improved from %3.4f to $3.4f' % (best_valid_loss, valid_loss))
+				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss))
 				best_valid_loss = valid_loss
 				self.save(self.data_index)
 				overfit_index = 0
