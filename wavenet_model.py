@@ -14,16 +14,16 @@ class Wavenet_Model():
 	def create_model(self):
 		# Placeholders
 		# [batch size, step, features]
-		self.inputs = tf.placeholder(tf.float32, [None, None, self.args.num_features])
-		self.targets = tf.sparse_placeholder(tf.int32)
-		self.seq_len = tf.placeholder(tf.int32, [None])
+		self.inputs = tf.placeholder(tf.float32, [None, None, self.args.num_features], name='wave_input')
+		self.targets = tf.sparse_placeholder(tf.int32, name='target')
+		self.seq_len = tf.placeholder(tf.int32, [None], name='sequence_length')
 
-		self.skip = 0
+		skip = 0
 		'''
 			Construct of a stack of dilated causal convolutional layers
 		'''
 		# First non-causal convolution to inputs to expand feature dimension
-		h = conv1d(self.inputs, self.args.num_hidden, filter_width=self.args.filter_width, name='conv_in', normalization=self.args.layer_norm)
+		h = conv1d(self.inputs, self.args.num_hidden, filter_width=self.args.filter_width, name='conv_in', normalization=self.args.layer_norm, activation=tf.nn.tanh)
 		# As many as number of blocks, block means one total dilated convolution layers
 		for blocks in range(self.args.num_blocks):
 			# Construction of dilation
@@ -31,18 +31,22 @@ class Wavenet_Model():
 				# [1,2,4,8,16..]
 				rate = 2**dilated 
 				h, s = res_block(h, self.args.num_hidden, rate, self.args.causal, self.args.filter_width, normalization=self.args.layer_norm, activation=self.args.dilated_activation, name='{}block_{}layer'.format(blocks+1, dilated+1))
-				self.skip += s
+				skip += s
 		# Make skip connections
 		with tf.variable_scope('postprocessing'):
 			# 1*1 convolution
-			self.skip = conv1d(tf.nn.relu(self.skip), self.args.num_hidden, filter_width=1, normalization=self.args.layer_norm, name='conv_out1')
-			self.logits = conv1d(self.skip, self.args.num_classes, filter_width=1, activation=None, normalization=self.args.layer_norm, name='conv_out2')
+			skip = conv1d(tf.nn.relu(skip), self.args.num_hidden, filter_width=self.args.filter_width, normalization=self.args.layer_norm, name='conv_out1')
+			hidden = conv1d(skip, self.args.num_hidden, filter_width=self.args.filter_width, normalization=self.args.layer_norm, name='conv_out2')
+			self.logits = conv1d(hidden, self.args.num_classes, filter_width=1, activation=None, normalization=self.args.layer_norm, name='conv_out3')
 
 		# To calculate ctc, consider timemajor
 		self.logits_reshaped = tf.transpose(self.logits, [1,0,2])
 		self.loss = tf.reduce_mean(tf.nn.ctc_loss(labels=self.targets, inputs=self.logits_reshaped, sequence_length=self.seq_len))
 		self.ctc_decoded, _ = tf.nn.ctc_greedy_decoder(self.logits_reshaped, self.seq_len)	
 		self.ler = tf.reduce_mean(tf.edit_distance(tf.cast(self.ctc_decoded[0], tf.int32), self.targets))
+#		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+#		with tf.control_dependencies(update_ops):
+#			self.train_op = tf.train.AdamOptimizer(self.args.learning_rate).minimize(self.loss)
 		trainable_vr = tf.trainable_variables()
 		for i in trainable_vr:
 			print(i.name)
@@ -86,29 +90,28 @@ class Wavenet_Model():
 				label_valid = inputs_wave[train_index:len(inputs_label)]
 				datamove_flag = 0
 			# Permutation to get regularize effect
-		#	perm_index = np.random.permutation(len(wave_train))
-		#	wave_perm = wave_train[perm_index]
-		#	label_perm = label_train[perm_index]
+			perm_index = np.random.permutation(len(wave_train))
+			wave_perm = wave_train[perm_index]
+			label_perm = label_train[perm_index]
 			
 			for tr_step in range(training_step_per_epoch):
-				batch_index = [i for i in range(self.args.batch_size*tr_step, (tr_step+1)*self.args.batch_size)]
+				s_time = time.time()
 				# wave_input is numpy array
-				batch_wave = wave_train[batch_index]
+				batch_wave = wave_perm[tr_step*self.args.batch_size : (tr_step+1)*self.args.batch_size]
 				# pad input array to the same length(maximum length)
 				padded_batch_wav, original_batch_length = pad_sequences(batch_wave)
 				# target_label is numpy array 
-				batch_label = label_train[batch_index]
+				batch_label = label_perm[tr_step*self.args.batch_size : (tr_step+1)*self.args.batch_size]
 				# Make target to sparse tensor form to apply to ctc functions
 				sparse_batch_lbl = sparse_tensor_form(batch_label)
-				print(original_batch_length)
-				print(sparse_batch_lbl)
+#				original_batch_length, padded_batch_wav, sparse_batch_lbl = make_batch_sr(batch_wave, batch_label)
 				feed = {self.inputs: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
 				tr_step_loss, tr_step_ler, _ = self.sess.run([self.loss, self.ler, self.train_op], feed_dict = feed)
 				# Add summary
 				#self.writer.add_summary(summary_str, total_step)
 				train_loss += tr_step_loss*self.args.batch_size
 				train_ler += tr_step_ler*self.args.batch_size
-				print("[%d/%d] in Epoch %d, Train loss = %3.3f, Ler = %3.3f, Time per batch = %3.3f, %d steps" % (tr_step+1, trainingsteps_per_epoch, index+1, tr_step_loss, tr_step_ler, time.time()-s_time, total_step))
+				print("[%d/%d] in Epoch %d, Train loss = %3.3f, Ler = %3.3f, Time per batch = %3.3f, %d steps" % (tr_step+1, training_step_per_epoch, index+1, tr_step_loss, tr_step_ler, time.time()-s_time, total_step))
 				total_step += 1
 
 			train_loss /= len(wave_train)
@@ -149,11 +152,15 @@ class Wavenet_Model():
 		valid_ler = 0
 		valid_tr_step = len(wave) // self.args.batch_size
 		for valid_step in range(0, valid_tr_step):
-			valid_batch_wav = wave[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
-			valid_batch_lbl = label[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
+			valid_batch_wav = wave[valid_step*self.args.batch_size : (valid_step+1)*self.args.batch_size]
+			valid_batch_lbl = label[valid_step*self.args.batch_size : (valid_step+1)*self.args.batch_size]
+
 			padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
-			valid_lbl = sparse_tensor_form(valid_batch_lbl)
-			valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.inputs:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
+			print(padded_valid_wav.shape)
+			print(padded_valid_length.shape)
+			sparse_valid_lbl = sparse_tensor_form(valid_batch_lbl)
+			print(sparse_valid_lbl)
+			valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict={self.inputs:padded_valid_wav, self.targets:sparse_valid_lbl, self.seq_len:padded_valid_length})
 			valid_loss += valid_loss_*self.args.batch_size
 			valid_ler += valid_ler_*self.args.batch_size
 		valid_loss /= len(wave)

@@ -292,14 +292,33 @@ def pad_sequences(sequences, max_len=None, padding='post', truncated='post', val
 
   	return x, each_timestep
 
-def conv1d(inputs, out_channels, filter_width = 2, stride = 1, data_format = 'NHWC', name = None, padding = 'VALID', activation = tf.nn.relu, normalization = None):
+def make_batch_sr(batch_in_list, batch_out_list):
+	feat_dim = batch_in_list[0].shape[1]
+	batch_size = batch_in_list.shape[0]
+	length = [batch_in_list[i].shape[0] for i in range(batch_size)]
+	max_dim = np.max(length)
+	length_label = [len(batch_out_list[i]) for i in range(batch_size)]
+	max_label_dim = np.max(length_label)
+	shape = [batch_size, max_label_dim]
+	indices = []
+	values = []
+	for i, seq in enumerate(batch_out_list):
+		indices.extend(zip([i]*len(seq), range(len(seq))))
+		values.extend(seq)
+	batch_in_pad = np.zeros(shape=[batch_size, max_dim, feat_dim], dtype=np.float32)
+	batch_out = tf.SparseTensorValue(indices, values,shape)
+	for i in range(batch_size):
+		batch_in_pad[i, 0:length[i], :] = batch_in_list[i]
+	return np.array(length), batch_in_pad, batch_out
+
+def conv1d(inputs, out_channels, filter_width = 2, stride = 1, name = None, activation = tf.nn.relu, normalization = None):
     with tf.variable_scope(name):
         # inputs : [batch, width, channel](1-D)
         w = tf.get_variable('weight', shape=(filter_width, inputs.get_shape().as_list()[-1], out_channels), initializer=tf.contrib.layers.xavier_initializer())
         b = tf.get_variable('bias', shape=(out_channels,), initializer=tf.constant_initializer(0))
         # If data format 'NHWC' : [batch, in_width, in_channel]
         # If data format 'NCHW' : [batch, in_channel, in_width]
-        outputs = tf.nn.conv1d(inputs, w, stride=stride, padding='VALID',data_format='NHWC')
+        outputs = tf.nn.conv1d(inputs, w, stride=stride, padding='SAME',data_format='NHWC')
         weighted_sum = outputs + b
         if normalization == 'ln':
             outputs = tf.contrib.layers.layer_norm(weighted_sum, scope = 'ln')
@@ -360,8 +379,8 @@ def res_block(tensor, num_hidden, rate, causal, dilated_filter_width, normalizat
 		# Elementwise multiication
 		out = h_filter * h_gate    
 		# Generate residual part and skip part through 1*1 convolution
-		residual = conv1d(out,num_hidden, filter_width=1, activation=None, normalization=normalization, name='res_conv')   # (batch, width, num_hidden)
-		skip = conv1d(out,num_hidden, filter_width=1, activation=None, normalization=normalization, name='skip_conv')   # (batch, width, num_hidden)
+		residual = conv1d(out, num_hidden, filter_width=1, activation=None, normalization=normalization, name='res_conv')   # (batch, width, num_hidden)
+		skip = conv1d(out, num_hidden, filter_width=1, activation=None, normalization=normalization, name='skip_conv')   # (batch, width, num_hidden)
 
 	# Return skip part and residual for next layer
 	return tensor + residual, skip
