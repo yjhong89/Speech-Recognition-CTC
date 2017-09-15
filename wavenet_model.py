@@ -124,7 +124,7 @@ class Wavenet_Model():
 			
 			# Save only when validation improved
 			if valid_ler < best_valid_ler:
-				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss))
+				print('Validation improved from %3.4f to %3.4f' % (best_valid_ler, valid_ler))
 				best_valid_loss = valid_loss
 				self.save(self.data_index)
 				overfit_index = 0
@@ -195,7 +195,7 @@ class Wavenet_Model():
 		if ckpt and ckpt.model_checkpoint_path:
 			ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
 			self.data_index = int(ckpt_name.split('-')[1])
-   			print(ckpt_name, self.loaded_epoch)
+   			print(ckpt_name, self.data_index)
 			if ckpt_name.split('-')[0] == model_name:
 				self.saver.restore(self.sess, ckpt.model_checkpoint_path)
 				print('Success to read %s, %d dataset' % (ckpt_name, self.data_index))
