@@ -23,14 +23,14 @@ class Wavenet_Model():
 			Construct of a stack of dilated causal convolutional layers
 		'''
 		# First non-causal convolution to inputs to expand feature dimension
-		self.h = conv1d(self.inputs, self.args.num_hidden, filter_width=self.args.filter_width, name='conv_in', normalization=self.args.layer_norm)
+		h = conv1d(self.inputs, self.args.num_hidden, filter_width=self.args.filter_width, name='conv_in', normalization=self.args.layer_norm)
 		# As many as number of blocks, block means one total dilated convolution layers
 		for blocks in range(self.args.num_blocks):
 			# Construction of dilation
 			for dilated in range(self.args.num_wavenet_layers):
 				# [1,2,4,8,16..]
 				rate = 2**dilated 
-				self.h, s = res_block(self.h, self.args.num_hidden, rate, self.args.causal, self.args.filter_width, normalization=self.args.layer_norm, activation=self.args.dilated_activation, name='{}block_{}layer'.format(blocks+1, dilated+1))
+				h, s = res_block(h, self.args.num_hidden, rate, self.args.causal, self.args.filter_width, normalization=self.args.layer_norm, activation=self.args.dilated_activation, name='{}block_{}layer'.format(blocks+1, dilated+1))
 				self.skip += s
 		# Make skip connections
 		with tf.variable_scope('postprocessing'):
@@ -40,15 +40,15 @@ class Wavenet_Model():
 
 		# To calculate ctc, consider timemajor
 		self.logits_reshaped = tf.transpose(self.logits, [1,0,2])
-		self.loss = tf.reduced_mean(tf.nn.ctc_loss(labels=self.targets, inputs=self.logtis_reshaped, sequence_length=self.seq_len))
-		self.ctc_decoded, _ = tf.nn.ctc_beam_search_decoder(self.logits, self.seq_len)	
+		self.loss = tf.reduce_mean(tf.nn.ctc_loss(labels=self.targets, inputs=self.logits_reshaped, sequence_length=self.seq_len))
+		self.ctc_decoded, _ = tf.nn.ctc_greedy_decoder(self.logits_reshaped, self.seq_len)	
 		self.ler = tf.reduce_mean(tf.edit_distance(tf.cast(self.ctc_decoded[0], tf.int32), self.targets))
 		trainable_vr = tf.trainable_variables()
 		for i in trainable_vr:
 			print(i.name)
 		self.optimizer = tf.train.AdamOptimizer(self.args.learning_rate)
 		# clip_by_global_norm returns (list_clipped, global_norm)
-		grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, trainable_vr), self.args.max_grad)
+		grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, trainable_vr), self.args.maxgrad)
 		self.train_op = self.optimizer.apply_gradients(zip(grads, trainable_vr))	
 
 		self.saver = tf.train.Saver()
@@ -74,33 +74,35 @@ class Wavenet_Model():
 			train_ler = 0
 			# Move to new data
 			if datamove_flag :
-				inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_{}.npy'.format(self.data_index))
-				inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_{}.npy'.format(self.data_index))
-				print('%d-th %d wave %d target loaded' % (self.data_index, len(inputs_wave), len(inputs_label)))
-				training_step_per_epoch = data_length // self.args.batch_size
+				inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_{}.npy'.format(self.data_index+1)))
+				inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_{}.npy'.format(self.data_index+1)))
+				print('%d-th %d wave %d target loaded' % (self.data_index+1, len(inputs_wave), len(inputs_label)))
 				train_index = int(len(inputs_wave) * 0.9)
 				print('Train index : %d' % train_index)
+				training_step_per_epoch = train_index // self.args.batch_size
 				wave_train = inputs_wave[:train_index]
 				label_train = inputs_label[:train_index] 
 				wave_valid = inputs_wave[train_index:len(inputs_wave)]
 				label_valid = inputs_wave[train_index:len(inputs_label)]
 				datamove_flag = 0
 			# Permutation to get regularize effect
-			perm_index = np.random.permutation(len(wave_train))
-			wave_perm = wave_train[perm_index]
-			label_perm = label_train[perm_index]
+		#	perm_index = np.random.permutation(len(wave_train))
+		#	wave_perm = wave_train[perm_index]
+		#	label_perm = label_train[perm_index]
 			
 			for tr_step in range(training_step_per_epoch):
 				batch_index = [i for i in range(self.args.batch_size*tr_step, (tr_step+1)*self.args.batch_size)]
 				# wave_input is numpy array
-				batch_wave = wave_perm[batch_index]
+				batch_wave = wave_train[batch_index]
 				# pad input array to the same length(maximum length)
 				padded_batch_wav, original_batch_length = pad_sequences(batch_wave)
 				# target_label is numpy array 
-				batch_label = label_perm[batch_index]
+				batch_label = label_train[batch_index]
 				# Make target to sparse tensor form to apply to ctc functions
 				sparse_batch_lbl = sparse_tensor_form(batch_label)
-				feed = {self.input_data: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
+				print(original_batch_length)
+				print(sparse_batch_lbl)
+				feed = {self.inputs: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
 				tr_step_loss, tr_step_ler, _ = self.sess.run([self.loss, self.ler, self.train_op], feed_dict = feed)
 				# Add summary
 				#self.writer.add_summary(summary_str, total_step)
@@ -151,7 +153,7 @@ class Wavenet_Model():
 			valid_batch_lbl = label[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
 			padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
 			valid_lbl = sparse_tensor_form(valid_batch_lbl)
-			valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.input_data:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
+			valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.inputs:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
 			valid_loss += valid_loss_*self.args.batch_size
 			valid_ler += valid_ler_*self.args.batch_size
 		valid_loss /= len(wave)
@@ -188,17 +190,17 @@ class Wavenet_Model():
 		# Get checkpoint name(latest)
 		if ckpt and ckpt.model_checkpoint_path:
 			ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-			self.loaded_epoch = int(ckpt_name.split('-')[1])
+			self.data_index = int(ckpt_name.split('-')[1])
    			print(ckpt_name, self.loaded_epoch)
 			if ckpt_name.split('-')[0] == model_name:
 				self.saver.restore(self.sess, ckpt.model_checkpoint_path)
-				print('Success to read %s at epoch %d' % (ckpt_name, self.loaded_epoch))
+				print('Success to read %s, %d dataset' % (ckpt_name, self.data_index))
 				return True
 			else:
 				return False
 		else:
 			print('Failed to find a checkpoint')
-			self.loaded_epoch = 0
+			self.data_index = 0
 			return False
 		
 

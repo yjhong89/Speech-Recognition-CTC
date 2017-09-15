@@ -263,32 +263,32 @@ def pad_sequences(sequences, max_len=None, padding='post', truncated='post', val
   	feature_size = np.asarray(sequences[0]).shape[1:]
 
   	# Make empty array to bag padded sequence
-  	x = np.ones((num_element, max_len) + feature_size) * values
+  	x = (np.ones((num_element, max_len) + feature_size) * values).astype(np.float32)
 
   	for i, j in enumerate(sequences):
    		if len(j) == 0:
 			continue
-   	# Cut post side
-   	if truncated == 'post':
-		trunc = j[:max_len]
-   	# Cut pre side
-   	elif truncated == 'pre':
-		trunc = j[-max_len:]
-   	else:
-		raise ValueError('Truncated type not supported : %s' % truncated)
+	   	# Cut post side
+   		if truncated == 'post':
+			trunc = j[:max_len]
+	   	# Cut pre side
+   		elif truncated == 'pre':
+			trunc = j[-max_len:]
+	   	else:
+			raise ValueError('Truncated type not supported : %s' % truncated)
 
-   	# Check shape
-   	trunc = np.asarray(trunc)
-   	if trunc.shape[1:] != feature_size:
-		raise ValueError('Shape of truncated sequence %s and expected shape %s is not match' % (trunc.shape[1:], feature_size))
+	   	# Check shape
+   		trunc = np.asarray(trunc, dtype=np.float32)
+	   	if trunc.shape[1:] != feature_size:
+			raise ValueError('Shape of truncated sequence %s and expected shape %s is not match' % (trunc.shape[1:], feature_size))
 
-   	# Substitute original value to 'x'
-   	if padding == 'post':
-		x[i,:len(j)] = trunc
-   	elif padding == 'pre':
-		x[i,-len(j):] = trunc
-   	else:
-		raise ValueError('Padding type not supported : %s' % padding)
+	   	# Substitute original value to 'x'
+   		if padding == 'post':
+			x[i,:len(j)] = trunc
+	   	elif padding == 'pre':
+			x[i,-len(j):] = trunc
+	   	else:
+			raise ValueError('Padding type not supported : %s' % padding)
 
   	return x, each_timestep
 

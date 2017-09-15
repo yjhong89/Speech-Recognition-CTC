@@ -14,19 +14,19 @@ from decoder import DECODER
 
 def main():
  	parser = argparse.ArgumentParser()
- 	parser.add_argument('--train_wav_dir', type=str, default='./waves_n', help='data directory containing audio clip')
- 	parser.add_argument('--train_lbl_dir', type=str, default='./trspn_n', help='data directory containing transcript')
+ 	parser.add_argument('--train_wav_dir', type=str, default='/home/yjhong89/tf/waves_1000', help='data directory containing audio clip')
+ 	parser.add_argument('--train_lbl_dir', type=str, default='/home/yjhong89/tf/trans_1000', help='data directory containing transcript')
  	parser.add_argument('--test_data_dir', type=str, default='/home/yjhong89/etri/test', help='data directory containing audio clip and transcription')
 	#parser.add_argument('--valid_data_dir', type=str, default='./validation')
  	parser.add_argument('--files_dir', type=str, default='./files')
 	parser.add_argument('--log_dir', type=str, default='./logs')
  	parser.add_argument('--checkpoint_dir', type=str, default='checkpoint', help='To restore variables and model')
-	parser.add_argument('--maxgrad', type=float, default=5.0)
- 	parser.add_argument('--batch_size', type=int, default=2)
+	parser.add_argument('--maxgrad', type=float, default=50.0)
+ 	parser.add_argument('--batch_size', type=int, default=10)
  	parser.add_argument('--num_epoch', type=int, default=2000)
- 	parser.add_argument('--learning_rate', type=float, default=5e-4)
+ 	parser.add_argument('--learning_rate', type=float, default=0.001)
  	parser.add_argument('--is_train', type=str2bool, default='t')
-	parser.add_argument('--layer_norm', type=str2bool, default='n')
+	parser.add_argument('--layer_norm', type=str2bool, default='t')
  	parser.add_argument('--init_from', type=str2bool, default='t', help='Continue training from saved model') 
  	parser.add_argument('--save_interval', type=int, default=5)
  	parser.add_argument('--num_features', type=int, default=39)
@@ -39,9 +39,10 @@ def main():
 	parser.add_argument('--beta', type=float, default=1.5, help='insertion bonus')
 	parser.add_argument('--beam_width', type=int, default=128)
 	parser.add_argument('--start_data', type=int, default=1)
+	parser.add_argument('--overfit_index', type=int, default=10)
 
 	# Get model type from argument
-	model_type = sys.argv[1]
+	model_type = 'WAVENET' 
 	
 	if model_type == 'RNN':
  		parser.add_argument('--state_size', type=int, default=512, help='size of RNN hidden state')
@@ -52,7 +53,8 @@ def main():
 
 	elif model_type == 'WAVENET':
 		parser.add_argument('--num_blocks', type=int, default=3)
-		parser.add_argument('--num_wavenet_layers', type=int, default=8)
+		parser.add_argument('--filter_width', type=int, default=3)
+		parser.add_argument('--num_wavenet_layers', type=int, default=5)
 		parser.add_argument('--num_hidden', type=int, default=128)
 		parser.add_argument('--causal', type=str2bool, default='n')
 		parser.add_argument('--dilated_activation', type=str, default='gated_linear', choices=['gated_linear', 'gated_tanh'])
