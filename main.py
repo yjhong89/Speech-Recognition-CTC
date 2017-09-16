@@ -52,8 +52,8 @@ def main():
 
 	elif model_type == 'WAVENET':
 		parser.add_argument('--num_blocks', type=int, default=3)
-		parser.add_argument('--filter_width', type=int, default=3)
-		parser.add_argument('--num_wavenet_layers', type=int, default=5)
+		parser.add_argument('--filter_width', type=int, default=5)
+		parser.add_argument('--num_wavenet_layers', type=int, default=7)
 		parser.add_argument('--num_hidden', type=int, default=128)
 		parser.add_argument('--causal', type=str2bool, default='n')
 		parser.add_argument('--dilated_activation', type=str, default='gated_linear', choices=['gated_linear', 'gated_tanh'])

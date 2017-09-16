@@ -221,6 +221,6 @@ class Wavenet_Model():
 		else:
 			self.log_file = open(log_path, 'a')
 
-		self.log_file.write(str(epoch)+'\t,' + str(loss)+'\t,' + str(ler) + '\t,' + str(valid_loss) + '\t,' + str(valid_ler) + '\t,' + str(time.time()-start_time) + '\n')
+		self.log_file.write('%d\t, %3.4f\t, %3.4f\t, %3.4f\t, %3.4f\t, %3.4f sec\n' % (epoch, loss, ler, valid_loss, valid_ler, time.time()-start_time))
 		self.log_file.flush()
 
