@@ -44,16 +44,18 @@ class Wavenet_Model():
 		self.loss = tf.reduce_mean(tf.nn.ctc_loss(labels=self.targets, inputs=self.logits_reshaped, sequence_length=self.seq_len))
 		self.ctc_decoded, _ = tf.nn.ctc_greedy_decoder(self.logits_reshaped, self.seq_len)	
 		self.ler = tf.reduce_mean(tf.edit_distance(tf.cast(self.ctc_decoded[0], tf.int32), self.targets))
-#		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-#		with tf.control_dependencies(update_ops):
-#			self.train_op = tf.train.AdamOptimizer(self.args.learning_rate).minimize(self.loss)
+		# When use tf.contrib.layers.layer_norm(batch_norm), update_ops are placed in tf.GraphKeys.UPDATE_OPS so they need to be added as a dependency to the train_op
+		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+	#	with tf.control_dependencies(update_ops):
+	#		self.train_op = tf.train.AdamOptimizer(self.args.learning_rate).minimize(self.loss)
 		trainable_vr = tf.trainable_variables()
 		for i in trainable_vr:
 			print(i.name)
 		self.optimizer = tf.train.AdamOptimizer(self.args.learning_rate)
 		# clip_by_global_norm returns (list_clipped, global_norm)
 		grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, trainable_vr), self.args.maxgrad)
-		self.train_op = self.optimizer.apply_gradients(zip(grads, trainable_vr))	
+		with tf.control_dependencies(update_ops):
+			self.train_op = self.optimizer.apply_gradients(zip(grads, trainable_vr))	
 
 		self.saver = tf.train.Saver()
 
@@ -187,7 +189,7 @@ class Wavenet_Model():
 		# checkpoint directory
 		checkpoint_dir = os.path.join(self.args.checkpoint_dir, self.model_dir)
 		# check model name
-		model_name = 'acousticmodel'
+		model_name = 'Wavenet'
 		# Restoring, the graph is exactly as it was when the variable were saved in prior run
 		# Return checkpointstate proto
 		ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
