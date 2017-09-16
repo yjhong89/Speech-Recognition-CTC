@@ -35,8 +35,8 @@ class Wavenet_Model():
 		# Make skip connections
 		with tf.variable_scope('postprocessing'):
 			# 1*1 convolution
-			skip = conv1d(tf.nn.relu(skip), self.args.num_hidden, filter_width=self.args.filter_width, normalization=self.args.layer_norm, name='conv_out1')
-			hidden = conv1d(skip, self.args.num_hidden, filter_width=self.args.filter_width, normalization=self.args.layer_norm, name='conv_out2')
+			skip = conv1d(tf.nn.relu(skip), self.args.num_hidden, filter_width=self.args.filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out1')
+			hidden = conv1d(skip, self.args.num_hidden, filter_width=self.args.filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out2')
 			self.logits = conv1d(hidden, self.args.num_classes, filter_width=1, activation=None, normalization=self.args.layer_norm, name='conv_out3')
 
 		# To calculate ctc, consider timemajor
@@ -46,16 +46,17 @@ class Wavenet_Model():
 		self.ler = tf.reduce_mean(tf.edit_distance(tf.cast(self.ctc_decoded[0], tf.int32), self.targets))
 		# When use tf.contrib.layers.layer_norm(batch_norm), update_ops are placed in tf.GraphKeys.UPDATE_OPS so they need to be added as a dependency to the train_op
 		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-	#	with tf.control_dependencies(update_ops):
-	#		self.train_op = tf.train.AdamOptimizer(self.args.learning_rate).minimize(self.loss)
+#		with tf.control_dependencies(update_ops):
+#			self.train_op = tf.train.AdamOptimizer(self.args.learning_rate).minimize(self.loss)
 		trainable_vr = tf.trainable_variables()
 		for i in trainable_vr:
 			print(i.name)
-		self.optimizer = tf.train.AdamOptimizer(self.args.learning_rate)
-		# clip_by_global_norm returns (list_clipped, global_norm)
-		grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, trainable_vr), self.args.maxgrad)
+		optimizer = tf.train.AdamOptimizer(self.args.learning_rate)
+		grad, vrbs = zip(*optimizer.compute_gradients(self.loss))
+#		# clip_by_global_norm returns (list_clipped, global_norm)
+		grads, _ = tf.clip_by_global_norm(grad, self.args.maxgrad)
 		with tf.control_dependencies(update_ops):
-			self.train_op = self.optimizer.apply_gradients(zip(grads, trainable_vr))	
+			self.train_op = optimizer.apply_gradients(zip(grads, vrbs))	
 
 		self.saver = tf.train.Saver()
 
@@ -69,8 +70,6 @@ class Wavenet_Model():
 			print('Load failed')
 		
 		total_step = 1
-		best_valid_loss = 1000
-		best_valid_ler = 1000
 		datamove_flag = 1
 		
 		for index in range(0, self.args.num_epoch):
@@ -90,6 +89,8 @@ class Wavenet_Model():
 				label_train = inputs_label[:train_index] 
 				wave_valid = inputs_wave[train_index:len(inputs_wave)]
 				label_valid = inputs_label[train_index:len(inputs_label)]
+				best_valid_loss = 1000
+				best_valid_ler = 1000
 				datamove_flag = 0
 			# Permutation to get regularize effect
 			perm_index = np.random.permutation(len(wave_train))

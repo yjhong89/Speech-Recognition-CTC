@@ -302,7 +302,7 @@ def conv1d(inputs, out_channels, filter_width = 2, stride = 1, name = None, acti
         # If data format 'NCHW' : [batch, in_channel, in_width]
         outputs = tf.nn.conv1d(inputs, w, stride=stride, padding='SAME',data_format='NHWC')
         weighted_sum = outputs + b
-        if normalization == 'ln':
+        if normalization:
             outputs = tf.contrib.layers.layer_norm(weighted_sum, scope = 'ln')
         if activation:
             outputs = activation(outputs)
@@ -310,8 +310,8 @@ def conv1d(inputs, out_channels, filter_width = 2, stride = 1, name = None, acti
 
 def dilated_conv1d(inputs, out_channels, filter_width = 2, padding='SAME', rate = 1, causal = True, name = None, activation = None, normalization = None):
     with tf.variable_scope(name):
-        w = tf.get_variable(name='w', shape=(filter_width, inputs.get_shape().as_list()[-1], out_channels), initializer = tf.contrib.layers.xavier_initializer())
-        b = tf.get_variable(name='b', shape=(out_channels,), initializer=tf.constant_initializer(0.0))
+        w = tf.get_variable(name='weight', shape=(filter_width, inputs.get_shape().as_list()[-1], out_channels), initializer = tf.contrib.layers.xavier_initializer())
+        b = tf.get_variable(name='bias', shape=(out_channels,), initializer=tf.constant_initializer(0.0))
         # causal means output at time 't' only depends on its past and current 't', so pad only left side
         # When causal, need to insert (filter_width - 1) zeros to left side of input
         if causal:
@@ -340,7 +340,7 @@ def dilated_conv1d(inputs, out_channels, filter_width = 2, padding='SAME', rate 
         # Since non causal, pad zeors also to right part of input
         else:
             outputs = tf.nn.convolution(inputs, w, dilation_rate = [rate], padding = 'SAME') + b
-        if normalization == 'ln':
+        if normalization:
             outputs = tf.contrib.layers.layer_norm(outputs, scope = 'ln')
         if activation:
             outputs = activation(outputs)
