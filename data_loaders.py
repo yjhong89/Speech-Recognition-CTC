@@ -11,89 +11,90 @@ import collections
 from six.moves import cPickle
 
 class TextLoader():
-	 def __init__(self, data_path, seq_length, batch_size, encoding='utf-8'):
-	 	self.seq_length = seq_length
-	 	self.batch_size = batch_size
-	 	self.encoding = encoding
-	
-	 	input_file = os.path.join(data_path, 'cantab_noeos.txt')
-	 	vocab_file = os.path.join(data_path, 'vocab.pkl')
-	 	tensor_file = os.path.join(data_path, 'data.npy')
-	 	
-	 	if not (os.path.exists(vocab_file) and os.path.exists(tensor_file)):
-	 		print('Reading text file')
-	 	 	self.preprocess(input_file, vocab_file, tensor_file)
-	 	else:
-	 		print('Load files')
-	 		self.load_preprocessed(vocab_file, tensor_file)
-	
-	 	self.create_batches()
-	 	self.reset_batch_pointer()
-	
-	 # Read input.txt, get vocabulary used at least once
-	 def preprocess(self, input_file, vocab_file, tensor_file):
-	 	if not os.path.exists(input_file):
-	 		print('File does not exist')
-	 		print os.path.abspath(input_file)
-	 	with open(input_file, 'r') as f:
-	 	 	# Read all input.txt include \r, \n
-	 	 	raw_data = f.read()
-	 	# Label process
-	 	raw_data = raw_data.lower()
-	 	# collections.Counter returns Counter type which has dictionary form. And count the number of each element used in input argument
-	 	counter = collections.Counter(raw_data)
-	 	print counter
-	 	# counter.items() returns a list of (element, count) pairs
-	 	# key in sorted function do sorting operation. In this case, reverse order with count element for each pair
-	 	# sorting element in the order of count
-	 	count_pairs = sorted(counter.items(), key=lambda x:-x[1])
-	 	# '*' operator decompose element, count element so we can get only vocabulary typle by zip(*count_pair)
-	 	# [(1,'a'), (2,'b'), (3,'c')] => [(1,2,3), ('a','b','c')]
-	 	self.chars, _ = zip(*count_pairs) 
-	 	# Get vocabulary size
-	 	self.vocab_size = len(self.chars)
-	 	# Make dictionary to get index for each vocabulary used
-	 	self.vocab_to_idx = dict(zip(self.chars, range(len(self.chars))))
-	 	self.idx_to_vocab = dict(enumerate(self.chars))
-	 	with open(vocab_file, 'wb') as f:
-	 		cPickle.dump(self.chars, f)
-	 	# Convert each char in input.txt into index list and make it  numpy array
-	 	self.tensor = np.array(list(map(self.vocab_to_idx.get, raw_data)))
-	 	np.save(tensor_file, self.tensor)
-	
-	 def load_preprocessed(self, vocab_file, tensor_file):
-	  	with open(vocab_file, 'rb') as f:
-	  		self.chars = cPickle.load(f)
-	  	self.vocab_size = len(self.chars) 
-	  	self.vocab_to_idx = dict(zip(self.chars, range(len(self.chars))))
-	  	self.idx_to_vocab = dict(enumerate(self.chars))
-	  	self.tensor = np.load(tensor_file)
-	  	# Number of batches
-	  	self.num_bathes = int(self.tensor.size / (self.batch_size * self.seq_length))
-	
-	 def create_batches(self):
-	  	self.num_batches = int(self.tensor.size / (self.batch_size * self.seq_length))
-	  	if self.num_batches == 0:
-	   		Exception('Lower batch_size and seq_length')
-	
-	  	# Remove redundant element in self.tensor
-	  	self.tensor = self.tensor[:self.num_batches * self.batch_size * self.seq_length]
-	  	# Character language model, predict next character given present character
-	  	x_data = self.tensor
-	  	y_data = np.copy(self.tensor)
-	  	y_data[:-1] = self.tensor[1:]
-	  	y_data[-1] = 0
-	  	# Reshaping batches to fit place holder [batch_size * seq_length(num_step)]
-	  	self.x_batches = np.split(x_data.reshape(self.batch_size, -1), self.num_batches, 1)
-	  	self.y_batches = np.split(y_data.reshape(self.batch_size, -1), self.num_batches, 1)
-	
-	 def next_batch(self):
-	 	batch_x, batch_y = self.x_batches[self.pointer], self.y_batches[self.pointer]
-	  	self.pointer += 1
-	  	return batch_x, batch_y
-	  
-	 def reset_batch_pointer(self):
-	  	self.pointer = 0
+    def __init__(self, data_path, seq_length, batch_size, encoding='utf-8'):
+        self.seq_length = seq_length
+        self.batch_size = batch_size
+        self.encoding = encoding
+        
+        input_file = os.path.join(data_path, 'cantab_noeos.txt')
+        vocab_file = os.path.join(data_path, 'vocab.pkl')
+        tensor_file = os.path.join(data_path, 'data.npy')
+        
+        if not (os.path.exists(vocab_file) and os.path.exists(tensor_file)):
+            print('Reading text file')
+            self.preprocess(input_file, vocab_file, tensor_file)
+        else:
+            print('Load files')
+            self.load_preprocessed(vocab_file, tensor_file)
+        
+        self.create_batches()
+        self.reset_batch_pointer()
+    
+    # Read input.txt, get vocabulary used at least once
+    def preprocess(self, input_file, vocab_file, tensor_file):
+        if not os.path.exists(input_file):
+            print('File does not exist')
+            print(os.path.abspath(input_file))
+        
+        with open(input_file, 'r') as f:
+            # Read all input.txt include \r, \n
+            raw_data = f.read()
+        # Label process
+        raw_data = raw_data.lower()
+        # collections.Counter returns Counter type which has dictionary form. And count the number of each element used in input argument
+        counter = collections.Counter(raw_data)
+        print(counter)
+        # counter.items() returns a list of (element, count) pairs
+        # key in sorted function do sorting operation. In this case, reverse order with count element for each pair
+        # sorting element in the order of count
+        count_pairs = sorted(counter.items(), key=lambda x:-x[1])
+        # '*' operator decompose element, count element so we can get only vocabulary typle by zip(*count_pair)
+        # [(1,'a'), (2,'b'), (3,'c')] => [(1,2,3), ('a','b','c')]
+        self.chars, _ = zip(*count_pairs) 
+        # Get vocabulary size
+        self.vocab_size = len(self.chars)
+        # Make dictionary to get index for each vocabulary used
+        self.vocab_to_idx = dict(zip(self.chars, range(len(self.chars))))
+        self.idx_to_vocab = dict(enumerate(self.chars))
+        with open(vocab_file, 'wb') as f:
+        	cPickle.dump(self.chars, f)
+        # Convert each char in input.txt into index list and make it  numpy array
+        self.tensor = np.array(list(map(self.vocab_to_idx.get, raw_data)))
+        np.save(tensor_file, self.tensor)
+    
+    def load_preprocessed(self, vocab_file, tensor_file):
+     	with open(vocab_file, 'rb') as f:
+     		self.chars = cPickle.load(f)
+     	self.vocab_size = len(self.chars) 
+     	self.vocab_to_idx = dict(zip(self.chars, range(len(self.chars))))
+     	self.idx_to_vocab = dict(enumerate(self.chars))
+     	self.tensor = np.load(tensor_file)
+     	# Number of batches
+     	self.num_bathes = int(self.tensor.size / (self.batch_size * self.seq_length))
+    
+    def create_batches(self):
+     	self.num_batches = int(self.tensor.size / (self.batch_size * self.seq_length))
+     	if self.num_batches == 0:
+      		Exception('Lower batch_size and seq_length')
+    
+     	# Remove redundant element in self.tensor
+     	self.tensor = self.tensor[:self.num_batches * self.batch_size * self.seq_length]
+     	# Character language model, predict next character given present character
+     	x_data = self.tensor
+     	y_data = np.copy(self.tensor)
+     	y_data[:-1] = self.tensor[1:]
+     	y_data[-1] = 0
+     	# Reshaping batches to fit place holder [batch_size * seq_length(num_step)]
+     	self.x_batches = np.split(x_data.reshape(self.batch_size, -1), self.num_batches, 1)
+     	self.y_batches = np.split(y_data.reshape(self.batch_size, -1), self.num_batches, 1)
+    
+    def next_batch(self):
+    	batch_x, batch_y = self.x_batches[self.pointer], self.y_batches[self.pointer]
+     	self.pointer += 1
+     	return batch_x, batch_y
+     
+    def reset_batch_pointer(self):
+     	self.pointer = 0
 
 
 class SpeechLoader():

@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-import time, os, cPickle, collections
+import time, os, collections
 from data_loaders import SpeechLoader
 from ops import *
 

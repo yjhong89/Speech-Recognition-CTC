@@ -17,65 +17,65 @@ SummaryWriter = tf.summary.FileWriter
 # Hypothesis probability for decoding
 # All probabilities are assumes log prob
 class Hypothesis():
- 	def __init__(self, p_nb, p_b, prefix_len):
- 	 	# probability for not ending blank
- 	 	self.p_nb = p_nb
- 	 	# probability for ending blank
- 	 	self.p_b = p_b
- 	 	self.prefix_len = prefix_len
+    def __init__(self, p_nb, p_b, prefix_len):
+     	# probability for not ending blank
+        self.p_nb = p_nb
+     	# probability for ending blank
+        self.p_b = p_b
+        self.prefix_len = prefix_len
+    
+    @staticmethod
+    def exp_sum_log(p1, p2):
+        ''' Exponential sum of log, 
+     	    Return : log(exp(p1)+exp(p2)
+     	'''
+        exp_sum = math.exp(p1) + math.exp(p2)
+        if exp_sum == 0:
+            return float('-inf')
+        return math.log(exp_sum)
+    
+    @staticmethod
+    def label_to_index(character, num_label):
+        if num_label == 30:
+            if character == SpeechLoader.SPACE_TOKEN:
+                index = 0
+            elif character == SpeechLoader.APSTR_TOKEN:
+                index = 27
+            elif character == SpeechLoader.EOS_TOKEN:
+                index = 28
+            else:
+                index = ord(character) - SpeechLoader.FIRST_INDEX
+        elif num_label == 29:
+            if character == SpeechLoader.SPACE_TOKEN:
+                index = 0
+            elif character == SpeechLoader.APSTR_TOKEN:
+                index = 27
+            else:
+                index = ord(character) - SpeechLoader.FIRST_INDEX
+        return index
 
- 	@staticmethod
- 	def exp_sum_log(p1, p2):
- 	 	''' Exponential sum of log, 
- 	 	    Return : log(exp(p1)+exp(p2)
- 	 	'''
- 	 	exp_sum = math.exp(p1) + math.exp(p2)
- 	 	if exp_sum == 0:
- 	 	 	return float('-inf')
- 	 	return math.log(exp_sum)
-
- 	@staticmethod
- 	def label_to_index(character, num_label):
-		if num_label == 30:
-			if character == SpeechLoader.SPACE_TOKEN:
- 	 	 		index = 0
-			elif character == SpeechLoader.APSTR_TOKEN:
-	 	 	 	index = 27
- 		 	elif character == SpeechLoader.EOS_TOKEN:
- 	 			index = 28
-	 	 	else:
- 		 		index = ord(character) - SpeechLoader.FIRST_INDEX
-		elif num_label == 29:
-			if character == SpeechLoader.SPACE_TOKEN:
- 	 	 		index = 0
-			elif character == SpeechLoader.APSTR_TOKEN:
-	 	 	 	index = 27
-	 	 	else:
- 		 		index = ord(character) - SpeechLoader.FIRST_INDEX
- 	 	return index
-
- 	@staticmethod
- 	def index_to_label(idx, num_label):
- 		index = idx + SpeechLoader.FIRST_INDEX
-		if num_label == 30:
-			if index == ord('a') -1:
-	 			label = SpeechLoader.SPACE_TOKEN
-			elif index == ord('z') + 1:
-	  			label = SpeechLoader.APSTR_TOKEN
-			elif index ==  ord('a') + 2:
-				label = SpeechLoader.EOS_TOKEN
-			else:
-		 		label = ord(index)
-
-		elif num_label == 29:
-			if index == ord('a') -1:
-	 			label = SpeechLoader.SPACE_TOKEN
-			elif index == ord('z') + 1:
-	  			label = SpeechLoader.APSTR_TOKEN
-			else:
-		 		label = ord(index)
-
- 	 	return label
+@staticmethod
+def index_to_label(idx, num_label):
+    index = idx + SpeechLoader.FIRST_INDEX
+    if num_label == 30:
+    	if index == ord('a') -1:
+    		label = SpeechLoader.SPACE_TOKEN
+    	elif index == ord('z') + 1:
+    		label = SpeechLoader.APSTR_TOKEN
+    	elif index ==  ord('a') + 2:
+    		label = SpeechLoader.EOS_TOKEN
+    	else:
+     		label = ord(index)
+    
+    elif num_label == 29:
+    	if index == ord('a') -1:
+    		label = SpeechLoader.SPACE_TOKEN
+    	elif index == ord('z') + 1:
+    		label = SpeechLoader.APSTR_TOKEN
+    	else:
+     		label = ord(index)
+    
+    return label
 
 def word_error_rate(first_string, second_string):
 	# levenstein distance
@@ -90,13 +90,13 @@ def word_error_rate(first_string, second_string):
 	# Make distance table
 	d = np.zeros(((l_length + 1), (r_length + 1)))
 	# Initialize first column and first row
-	for i in xrange(l_length+1):
+	for i in range(l_length+1):
 		d[i][0] = i
-	for j in xrange(r_length+1):
+	for j in range(r_length+1):
 		d[0][j] = j
 	
-	for i in xrange(1, l_length + 1):
-		for j in xrange(1, r_length + 1):
+	for i in range(1, l_length + 1):
+		for j in range(1, r_length + 1):
 			if l[i-1] == r[j-1]:
 				d[i][j] = d[i-1][j-1]
 			else:
@@ -115,13 +115,13 @@ def chr_error_rate(first_string, second_string):
 	r_length = len(r)
 
 	d = np.zeros(((l_length + 1), (r_length + 1)))
-	for i in xrange(l_length+1):
+	for i in range(l_length+1):
 		d[i][0] = i
-	for j in xrange(r_length+1):
+	for j in range(r_length+1):
 		d[0][j] = j
 
-	for i in xrange(1, l_length + 1):
-		for j in xrange(1, r_length + 1):
+	for i in range(1, l_length + 1):
+		for j in range(1, r_length + 1):
 			if l[i-1] == r[j-1]:
 				d[i][j] = d[i-1][j-1]
 			else:
@@ -137,7 +137,7 @@ LayerNormalization
 From https://r2rt.com
 '''
 
-class LayerNormalizedLSTM(tf.nn.rnn_cell.RNNCell):
+class LayerNormalizedLSTM(tf.contrib.rnn.RNNCell):
 	# state_is_tuple is always true
 	def __init__(self, state_size, forget_bias=1.0, activation=tf.nn.tanh):
 		self._state_size = state_size
@@ -201,26 +201,26 @@ def ln(tensor, scope=None, epsilon=1e-5):
 
 
 def sparse_tensor_form(sequences):
-	''' Creates sparse tensor form of sequences
-  	Argument sequences : A list of lists where each element is a sequence
-  	Returns : 
+    ''' Creates sparse tensor form of sequences
+    Argument sequences : A list of lists where each element is a sequence
+    Returns : 
       A tuple of indices, values, shape
-  	'''
-  	indices = []
-  	values = []
-
-  	# Parsing elements in sequences as index and value 
-  	for n, element in enumerate(sequences):
-   		indices.extend(zip([n]*len(element), xrange(len(element))))
-   		values.extend(element)
-
-  	indices = np.asarray(indices)
-  	values = np.asarray(values)
-  	# Python max intenal function : max(0) returns each column max, max(1) returns each row max
-  	# Need '[]' because it is array, if there is not, it does not a shape ()
-  	shape = np.asarray([len(sequences), indices.max(0)[1]+1])
-
-  	return indices, values, shape
+    '''
+    indices = []
+    values = []
+    
+    # Parsing elements in sequences as index and value 
+    for n, element in enumerate(sequences):
+    	indices.extend(zip([n]*len(element), range(len(element))))
+    	values.extend(element)
+    
+    indices = np.asarray(indices)
+    values = np.asarray(values)
+    # Python max intenal function : max(0) returns each column max, max(1) returns each row max
+    # Need '[]' because it is array, if there is not, it does not a shape ()
+    shape = np.asarray([len(sequences), indices.max(0)[1]+1])
+    
+    return indices, values, shape
 
 def reverse_sparse_tensor(sparse_t):
 	'''
@@ -233,7 +233,7 @@ def reverse_sparse_tensor(sparse_t):
 		
 	start = 0
 	# shape[0] : number of sequence
-	for i in xrange(shape[0]):	
+	for i in range(shape[0]):	
 		# Get i-th sequence index
 		seq_length = len(filter(lambda x: x[0] == i, indices))
 		# Use append method instead of extend method
@@ -245,52 +245,52 @@ def reverse_sparse_tensor(sparse_t):
 
 
 def pad_sequences(sequences, max_len=None, padding='post', truncated='post', values=0):
-  	''' Pad each sequences to have same length to max_len
+    ''' Pad each sequences to have same length to max_len
     	If max_len is provided, any sequences longer than max_len is truncated to max_len
      	Argument seqeunces will be a array of sequence which has different timestep, last_dimension is num_features
-	Returns : 
+    Returns : 
     	padded sequence, original of each element in sequences 
-  	'''  
-  	num_element = len(sequences)
-  	each_timestep = np.asarray([len(x) for x in sequences])
-
-  	# Define max_len
-  	if max_len is None:
-   		max_len = np.max(each_timestep)
-
-  	# Need to add feature size as another dimension
-  	feature_size = tuple()
-  	feature_size = np.asarray(sequences[0]).shape[1:]
-
-  	# Make empty array to bag padded sequence
-  	x = (np.ones((num_element, max_len) + feature_size) * values).astype(np.float32)
-
-  	for i, j in enumerate(sequences):
-   		if len(j) == 0:
-			continue
-	   	# Cut post side
-   		if truncated == 'post':
-			trunc = j[:max_len]
-	   	# Cut pre side
-   		elif truncated == 'pre':
-			trunc = j[-max_len:]
-	   	else:
-			raise ValueError('Truncated type not supported : %s' % truncated)
-
-	   	# Check shape
-   		trunc = np.asarray(trunc, dtype=np.float32)
-	   	if trunc.shape[1:] != feature_size:
-			raise ValueError('Shape of truncated sequence %s and expected shape %s is not match' % (trunc.shape[1:], feature_size))
-
-	   	# Substitute original value to 'x'
-   		if padding == 'post':
-			x[i,:len(j)] = trunc
-	   	elif padding == 'pre':
-			x[i,-len(j):] = trunc
-	   	else:
-			raise ValueError('Padding type not supported : %s' % padding)
-
-  	return x, each_timestep
+    '''  
+    num_element = len(sequences)
+    each_timestep = np.asarray([len(x) for x in sequences])
+    
+    # Define max_len
+    if max_len is None:
+    	max_len = np.max(each_timestep)
+    
+    # Need to add feature size as another dimension
+    feature_size = tuple()
+    feature_size = np.asarray(sequences[0]).shape[1:]
+    
+    # Make empty array to bag padded sequence
+    x = (np.ones((num_element, max_len) + feature_size) * values).astype(np.float32)
+    
+    for i, j in enumerate(sequences):
+        if len(j) == 0:
+            continue
+        # Cut post side
+        if truncated == 'post':
+        	trunc = j[:max_len]
+        # Cut pre side
+        elif truncated == 'pre':
+        	trunc = j[-max_len:]
+        else:
+        	raise ValueError('Truncated type not supported : %s' % truncated)
+        
+        # Check shape
+        trunc = np.asarray(trunc, dtype=np.float32)
+        if trunc.shape[1:] != feature_size:
+        	raise ValueError('Shape of truncated sequence %s and expected shape %s is not match' % (trunc.shape[1:], feature_size))
+        
+        # Substitute original value to 'x'
+        if padding == 'post':
+        	x[i,:len(j)] = trunc
+        elif padding == 'pre':
+        	x[i,-len(j):] = trunc
+        else:
+        	raise ValueError('Padding type not supported : %s' % padding)
+        
+    return x, each_timestep
 
 
 def conv1d(inputs, out_channels, filter_width = 2, stride = 1, name = None, activation = tf.nn.relu, normalization = None):
