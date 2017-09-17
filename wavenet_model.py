@@ -35,8 +35,8 @@ class Wavenet_Model():
         # Make skip connections
         with tf.variable_scope('postprocessing'):
         	# 1*1 convolution
-        	skip = conv1d(tf.nn.relu(skip), self.args.num_hidden, filter_width=self.args.filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out1')
-        	hidden = conv1d(skip, self.args.num_hidden, filter_width=self.args.filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out2')
+        	skip = conv1d(tf.nn.relu(skip), self.args.num_hidden, filter_width=self.args.skip_filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out1')
+        	hidden = conv1d(skip, self.args.num_hidden, filter_width=self.args.skip_filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out2')
         	self.logits = conv1d(hidden, self.args.num_classes, filter_width=1, activation=None, normalization=self.args.layer_norm, name='conv_out3')
         
         # To calculate ctc, consider timemajor
