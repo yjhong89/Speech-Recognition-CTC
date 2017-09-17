@@ -53,7 +53,9 @@ class Wavenet_Model():
 			print(i.name)
 		optimizer = tf.train.AdamOptimizer(self.args.learning_rate)
 		grad, vrbs = zip(*optimizer.compute_gradients(self.loss))
-#		# clip_by_global_norm returns (list_clipped, global_norm)
+		# clip_by_global_norm returns (list_clipped, global_norm), global_norm is sum of total l2 gradient
+		# Right way of gradient clipping
+		# Automatically ignore None gradient
 		grads, _ = tf.clip_by_global_norm(grad, self.args.maxgrad)
 		with tf.control_dependencies(update_ops):
 			self.train_op = optimizer.apply_gradients(zip(grads, vrbs))	
@@ -141,7 +143,7 @@ class Wavenet_Model():
 				self.save(self.data_index)
 				break
 		   
-		   	if overfit_index == self.args.overfit_index:	
+		   	if (overfit_index == self.args.overfit_index) or (train_ler < 1e-1):	
 				self.data_index += 1
 				print('Move to %d dataset' % (self.data_index+1))
 				# To distinguish between dataset
