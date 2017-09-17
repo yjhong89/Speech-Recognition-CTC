@@ -53,7 +53,8 @@ class Wavenet_Model():
 			print(i.name)
 		optimizer = tf.train.AdamOptimizer(self.args.learning_rate)
 		grad, vrbs = zip(*optimizer.compute_gradients(self.loss))
-		# clip_by_global_norm returns (list_clipped, global_norm), global_norm is sum of total l2 gradient
+		# clip_by_global_norm returns (list_clipped, global_norm), global_norm is sum of total l2 gradient(inputs)
+		# If global_norm(sum of total norm) is greater than clipnorm(maxgrad), each element of input shrunk as ratio of global norm
 		# Right way of gradient clipping
 		# Automatically ignore None gradient
 		grads, _ = tf.clip_by_global_norm(grad, self.args.maxgrad)
