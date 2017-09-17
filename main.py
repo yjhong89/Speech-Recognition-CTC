@@ -38,7 +38,7 @@ def main():
 	parser.add_argument('--beta', type=float, default=1.5, help='insertion bonus')
 	parser.add_argument('--beam_width', type=int, default=128)
 	parser.add_argument('--start_data', type=int, default=1)
-	parser.add_argument('--overfit_index', type=int, default=10)
+	parser.add_argument('--overfit_index', type=int, default=5)
 
 	# Get model type from argument
 	model_type = 'WAVENET' 

@@ -173,9 +173,9 @@ class Wavenet_Model():
 	@property
 	def model_dir(self):
 		if self.args.layer_norm:
-			return '{}blocks_{}layers_{}width_ln'.format(self.args.num_blocks, self.args.num_wavenet_layers, self.args.filter_width)
+			return '{}blocks_{}layers_{}width_{}_ln'.format(self.args.num_blocks, self.args.num_wavenet_layers, self.args.filter_width, self.args.dilated_activation)
 		else:
-			return '{}blocks_{}layers_{}width'.format(self.args.num_blocks, self.args.num_wavenet_layers, self.args.filter_width)
+			return '{}blocks_{}layers_{}width_{}'.format(self.args.num_blocks, self.args.num_wavenet_layers, self.args.filter_width, self.args.dilated_activation)
 
 	def save(self, data_index):
 		model_name = 'Wavenet'
@@ -217,10 +217,10 @@ class Wavenet_Model():
 		log_path = os.path.join(self.args.log_dir, self.model_dir+'.csv')
 		if not os.path.exists(log_path):
 			self.log_file = open(log_path, 'w')
-			self.log_file.write('Epoch\t,avg_loss\t,avg_ler\t,valid_loss\t,valid_ler\t,time\n')
+			self.log_file.write('Epoch,\tavg_loss,\tavg_ler,\tvalid_loss,\tvalid_ler,\ttime\n')
 		else:
 			self.log_file = open(log_path, 'a')
 
-		self.log_file.write('%d\t, %3.4f\t, %3.4f\t, %3.4f\t, %3.4f\t, %3.4f sec\n' % (epoch, loss, ler, valid_loss, valid_ler, time.time()-start_time))
+		self.log_file.write('%d,\t%3.4f,\t%3.4f,\t%3.4f,\t%3.4f,\t%3.4f sec\n' % (epoch, loss, ler, valid_loss, valid_ler, time.time()-start_time))
 		self.log_file.flush()
 
