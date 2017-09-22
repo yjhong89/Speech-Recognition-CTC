@@ -71,7 +71,10 @@ class Wavenet_Model():
         	print('Checkpoint loaded')
         else:
         	print('Load failed')
-        
+       
+        if self.data_index == 200:
+            self.data_index = 0
+ 
         total_step = 1
         datamove_flag = 1
         
@@ -132,25 +135,24 @@ class Wavenet_Model():
             	print('Validation improved from %3.4f to %3.4f' % (best_valid_ler, valid_ler))
             	best_valid_loss = valid_loss
             	best_valid_ler = valid_ler
-            	self.save(self.data_index)
+            	self.save(self.data_index+1)
             	overfit_index = 0
             else:
                 overfit_index += 1
             
-            if train_ler < 1e-1 and valid_ler < 0.2:
+            if train_ler < 1e-1 and valid_ler < 0.15:
             	print('Label error rate is below 0.1 at epoch %d' % (index+1)) 
             	print('Valid error rate is below 0.2 at epoch %d' % (index+1))
-            	self.save(self.data_index)
+            	self.save(self.data_index+1)
             	break
             
             if (overfit_index == self.args.overfit_index) or (train_ler < 1e-1):	
             	self.data_index += 1
             	print('Move to %d dataset' % (self.data_index+1))
             	# To distinguish between dataset
-            	self.log_file.write('\n')
+            	#self.log_file.write('\n')
             	overfit_index = 0
             	datamove_flag = 1
-            	best_valid_loss = 1000
                
     
     def evaluate(self, wave, label):
