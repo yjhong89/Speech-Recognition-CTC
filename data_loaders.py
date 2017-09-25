@@ -89,153 +89,152 @@ class TextLoader():
      	self.y_batches = np.split(y_data.reshape(self.batch_size, -1), self.num_batches, 1)
     
     def next_batch(self):
-    	batch_x, batch_y = self.x_batches[self.pointer], self.y_batches[self.pointer]
-     	self.pointer += 1
-     	return batch_x, batch_y
+        batch_x, batch_y = self.x_batches[self.pointer], self.y_batches[self.pointer]
+        self.pointer += 1
+        return batch_x, batch_y
      
     def reset_batch_pointer(self):
      	self.pointer = 0
 
 
 class SpeechLoader():
-	# Define class constant
-	SPACE_TOKEN = '<space>'
-	SPACE_INDEX = 0
-	APSTR_TOKEN = '<apstr>'
-	APSTR_INDEX = 27 
-	EOS_TOKEN = '<eos>'
-	EOS_INDEX = 28 
-	PUNC_TOKEN = '<punc>'
-	BLANK_TOKEN = '<blank>'
-	# ord('a') = 97
-	FIRST_INDEX = ord('a') - 1
-	def __init__(self, data_path, num_features, num_classes):
-	  
-		print 'Data from : %s' % data_path
-	  	self.num_classes = num_classes
-	  	self.num_features = num_features
-	  	self.filelist = list()
-	  	self.wavfilelist = list()
-	  	self.txtfilelist = list()
-	  	self.eachlabellist = list()
-	  	self.mel_freq = list()
-	  	self.target_label = list()
-	  	self.length_check = list()
-	  	print('Number of classes %d, First INDEX : %d' % (self.num_classes, SpeechLoader.FIRST_INDEX))
-	
-	
-	  	''' Returning each file`s absolute path
-	  	path : directory path from root
-	  	dir : directory list below root, if there is no directory returns empty list
-	  	file  : file list below root, if there is no file returns empty list
-	  	'''
-	  	for path, dirs, files in os.walk(data_path):
-	   		fullpath = os.path.join(os.path.abspath(data_path), path)
-	   		for f in files:
-				filepath = os.path.join(fullpath, f)
-				self.filelist.append(filepath)
-	
-	  	for x in self.filelist:
-			if x[-3:] == 'wav':	
-				self.wavfilelist.append(x)
-			elif x[-3:] == 'txt':
-				self.txtfilelist.append(x)
-			else:
-				print(x)
-				raise Exception('Not wanted file type')
-		self.num_files = len(self.wavfilelist)
-	
-		self.wavfilelist.sort()
-		self.txtfilelist.sort()
-		print('Number of wav files : %d, Number of txt files : %d' % (len(self.wavfilelist), len(self.txtfilelist)))
-	
-	  	# Check sequence each wav,label file
-	  	try:
-	   		for a, b in zip(self.wavfilelist, self.txtfilelist):
-				wavname = a.split('-')[0]+a.split('-')[-1][:-4]
-				txtname = b.split('-')[0]+b.split('-')[-1][:-4]
-			if wavname == txtname:
-				pass
+    # Define class constant
+    SPACE_TOKEN = '<space>'
+    SPACE_INDEX = 0
+    APSTR_TOKEN = '<apstr>'
+    APSTR_INDEX = 27 
+    EOS_TOKEN = '<eos>'
+    EOS_INDEX = 28 
+    PUNC_TOKEN = '<punc>'
+    BLANK_TOKEN = '<blank>'
+    # ord('a') = 97
+    FIRST_INDEX = ord('a') - 1
+    def __init__(self, data_path, num_features, num_classes):
+        print('Data from : %s' % data_path)
+        self.num_classes = num_classes
+        self.num_features = num_features
+        self.filelist = list()
+        self.wavfilelist = list()
+        self.txtfilelist = list()
+        self.eachlabellist = list()
+        self.mel_freq = list()
+        self.target_label = list()
+        self.length_check = list()
+        print('Number of classes %d, First INDEX : %d' % (self.num_classes, SpeechLoader.FIRST_INDEX))
+        
+        
+        ''' Returning each file`s absolute path
+        path : directory path from root
+        dir : directory list below root, if there is no directory returns empty list
+        file  : file list below root, if there is no file returns empty list
+        '''
+        for path, dirs, files in os.walk(data_path):
+        	fullpath = os.path.join(os.path.abspath(data_path), path)
+        	for f in files:
+        		filepath = os.path.join(fullpath, f)
+        		self.filelist.append(filepath)
+        
+        for x in self.filelist:
+        	if x[-3:] == 'wav':	
+        		self.wavfilelist.append(x)
+        	elif x[-3:] == 'txt':
+        		self.txtfilelist.append(x)
+        	else:
+        		print(x)
+        		raise Exception('Not wanted file type')
+        self.num_files = len(self.wavfilelist)
+        
+        self.wavfilelist.sort()
+        self.txtfilelist.sort()
+        print('Number of wav files : %d, Number of txt files : %d' % (len(self.wavfilelist), len(self.txtfilelist)))
+        
+        # Check sequence each wav,label file
+        try:
+        	for a, b in zip(self.wavfilelist, self.txtfilelist):
+        		wavname = a.split('-')[0]+a.split('-')[-1][:-4]
+        		txtname = b.split('-')[0]+b.split('-')[-1][:-4]
+        	if wavname == txtname:
+        		pass
                                 #print(wavname)
-		except:
-	   		raise Exception('Files do not match')
-	   
-	  	# Pasing each line to represent each label
-	  	for each_text in self.txtfilelist:
-	   		f = open(each_text, 'r')
-	   		while True:
-				each_line = f.readline()
-				if not each_line:
-					break
-				self.eachlabellist.append(' '.join(each_line.split()))
-			f.close()
-	  
-		self.get_num_examples(self.wavfilelist, self.eachlabellist, self.num_files, self.num_features)
-		self.mel_freq = np.asarray(self.mel_freq)
-		self.target_label = np.asarray(self.target_label)
-		if len(self.length_check) != 0:
-			print(self.length_check)
-			print('Data prprocess not done for %d' % len(self.length_check))
-			raise Exception('input is longer than output')
-		print('Data preprocess done')
-	
-	def get_num_examples(self, wavlists, labellists, num_examples, num_features):
-		for n,(w, l) in enumerate(zip(wavlists, labellists)):
-	   		fs, au = wav.read(w)
-	   		# Extract Spectrum of audio inputs
-	   		melf = mfcc(au, samplerate = fs, numcep = self.num_features, winlen=0.025, winstep=0.01, nfilt=self.num_features)
-	   		#melf = (melf - np.mean(melf))/np.std(melf)
-	   		self.mel_freq.append(melf)
-	   		melf_target = self.labelprocessing(l)
-	   		self.target_label.append(melf_target)
-	   		if n == num_examples - 1:
-				break
-	   		if melf.shape[0] <= len(melf_target):
-				t = w,l
-				self.length_check.append(t) 
-	  
-	 # Split transcript into each label
-	def labelprocessing(self, labellist):
-		# Label preprocessing
-		label_prep = labellist.lower().replace('[', '')
-	  	label_prep = label_prep.replace(']', '')
-	  	label_prep = label_prep.replace('{', '')
-	  	label_prep = label_prep.replace('}', '')
-	  	label_prep = label_prep.replace('-', '')
-	  	label_prep = label_prep.replace('noise', '')
-	  	label_prep = label_prep.replace('vocalized','')
-	  	label_prep = label_prep.replace('_1', '')
-	  	label_prep = label_prep.replace('  ', ' ')
-	  	trans = label_prep.replace(' ','  ').split(' ')
-	  	labelset = [SpeechLoader.SPACE_TOKEN if x == '' else list(x) for x in trans]
-	  	if self.num_classes == 30:
-	   		labelset.append(SpeechLoader.EOS_TOKEN)
-	  		# Make array of each label
-	  	for sentence in labelset:
-	   		for each_idx, each_chr in enumerate(sentence):
-				if each_chr == "'":
-					sentence[each_idx] = SpeechLoader.APSTR_TOKEN
-		labelarray = np.hstack(labelset)
-	  	# Transform char into index
-	  	# including space, apostrophe, eos
-		if self.num_classes == 30:
-	   		train_target = np.asarray([SpeechLoader.SPACE_INDEX if x == SpeechLoader.SPACE_TOKEN else SpeechLoader.APSTR_INDEX \
-	   			if x == SpeechLoader.APSTR_TOKEN else SpeechLoader.EOS_INDEX if x == SpeechLoader.EOS_TOKEN \
-	   			else ord(x) - SpeechLoader.FIRST_INDEX for x in labelarray])
-	  # including space, apostrophe
-	  	elif self.num_classes == 29:
-	   		train_target = np.asarray([SpeechLoader.SPACE_INDEX if x == SpeechLoader.SPACE_TOKEN else SpeechLoader.APSTR_INDEX if x == SpeechLoader.APSTR_TOKEN else ord(x) - SpeechLoader.FIRST_INDEX for x in labelarray])
-	   
-	  	return train_target
-
-	def save(self, save_idx):
-		print('Save as numpy')
-		num_files = len(self.mel_freq) // save_idx
-		for save_index in range(0, num_files):
-			np.save('wave_{}.npy'.format(save_index+1), self.mel_freq[save_index*save_idx: (save_index+1)*save_idx])
-			np.save('tran_{}.npy'.format(save_index+1), self.target_label[save_index*save_idx: (save_index+1)*save_idx])
-			print('{} data complete'.format(save_index+1))
-		print('Finish')
+        except:
+        	raise Exception('Files do not match')
+        
+        # Pasing each line to represent each label
+        for each_text in self.txtfilelist:
+        	f = open(each_text, 'r')
+        	while True:
+        		each_line = f.readline()
+        		if not each_line:
+        			break
+        		self.eachlabellist.append(' '.join(each_line.split()))
+        	f.close()
+        
+        self.get_num_examples(self.wavfilelist, self.eachlabellist, self.num_files, self.num_features)
+        self.mel_freq = np.asarray(self.mel_freq)
+        self.target_label = np.asarray(self.target_label)
+        if len(self.length_check) != 0:
+        	print(self.length_check)
+        	print('Data prprocess not done for %d' % len(self.length_check))
+        	raise Exception('input is longer than output')
+        print('Data preprocess done')
+    
+    def get_num_examples(self, wavlists, labellists, num_examples, num_features):
+        for n,(w, l) in enumerate(zip(wavlists, labellists)):
+            fs, au = wav.read(w)
+            # Extract Spectrum of audio inputs
+            melf = mfcc(au, samplerate = fs, numcep = self.num_features, winlen=0.025, winstep=0.01, nfilt=self.num_features)
+            #melf = (melf - np.mean(melf))/np.std(melf)
+            self.mel_freq.append(melf)
+            melf_target = self.labelprocessing(l)
+            self.target_label.append(melf_target)
+            if n == num_examples - 1:
+            	break
+            if melf.shape[0] <= len(melf_target):
+            	t = w,l
+            	self.length_check.append(t) 
+      
+     # Split transcript into each label
+    def labelprocessing(self, labellist):
+        # Label preprocessing
+        label_prep = labellist.lower().replace('[', '')
+        label_prep = label_prep.replace(']', '')
+        label_prep = label_prep.replace('{', '')
+        label_prep = label_prep.replace('}', '')
+        label_prep = label_prep.replace('-', '')
+        label_prep = label_prep.replace('noise', '')
+        label_prep = label_prep.replace('vocalized','')
+        label_prep = label_prep.replace('_1', '')
+        label_prep = label_prep.replace('  ', ' ')
+        trans = label_prep.replace(' ','  ').split(' ')
+        labelset = [SpeechLoader.SPACE_TOKEN if x == '' else list(x) for x in trans]
+        if self.num_classes == 30:
+        	labelset.append(SpeechLoader.EOS_TOKEN)
+        	# Make array of each label
+        for sentence in labelset:
+        	for each_idx, each_chr in enumerate(sentence):
+        		if each_chr == "'":
+        			sentence[each_idx] = SpeechLoader.APSTR_TOKEN
+        labelarray = np.hstack(labelset)
+        # Transform char into index
+        # including space, apostrophe, eos
+        if self.num_classes == 30:
+        	train_target = np.asarray([SpeechLoader.SPACE_INDEX if x == SpeechLoader.SPACE_TOKEN else SpeechLoader.APSTR_INDEX \
+        		if x == SpeechLoader.APSTR_TOKEN else SpeechLoader.EOS_INDEX if x == SpeechLoader.EOS_TOKEN \
+        		else ord(x) - SpeechLoader.FIRST_INDEX for x in labelarray])
+        #Including space, apostrophe
+        elif self.num_classes == 29:
+        	train_target = np.asarray([SpeechLoader.SPACE_INDEX if x == SpeechLoader.SPACE_TOKEN else SpeechLoader.APSTR_INDEX if x == SpeechLoader.APSTR_TOKEN else ord(x) - SpeechLoader.FIRST_INDEX for x in labelarray])
+        
+        return train_target
+    
+    def save(self, save_idx):
+    	print('Save as numpy')
+    	num_files = len(self.mel_freq) // save_idx
+    	for save_index in range(0, num_files):
+    		np.save('wave_{}.npy'.format(save_index+1), self.mel_freq[save_index*save_idx: (save_index+1)*save_idx])
+    		np.save('tran_{}.npy'.format(save_index+1), self.target_label[save_index*save_idx: (save_index+1)*save_idx])
+    		print('{} data complete'.format(save_index+1))
+    	print('Finish')
 		
 
 if __name__ == "__main__":

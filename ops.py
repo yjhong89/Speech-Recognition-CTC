@@ -223,25 +223,25 @@ def sparse_tensor_form(sequences):
     return indices, values, shape
 
 def reverse_sparse_tensor(sparse_t):
-	'''
-		Input : sparse tensor (indices, value, shape)
-	'''
-	sequences = list()
-	indices = sparse_t[0]
-	value = sparse_t[1]
-	shape = sparse_t[2]
-		
-	start = 0
-	# shape[0] : number of sequence
-	for i in range(shape[0]):	
-		# Get i-th sequence index
-		seq_length = len(filter(lambda x: x[0] == i, indices))
-		# Use append method instead of extend method
-		# Since extend method returns each element iteratively so each element is not seperated
-		sequences.append(np.asarray(value[start:(start+seq_length)]))
-		start += seq_length
-
-	return sequences
+    '''
+    	Input : sparse tensor (indices, value, shape)
+    '''
+    sequences = list()
+    indices = sparse_t[0]
+    value = sparse_t[1]
+    shape = sparse_t[2]
+    	
+    start = 0
+    # shape[0] : number of sequence
+    for i in range(shape[0]):	
+        # Get i-th sequence index
+        seq_length = len(list(filter(lambda x: x[0] == i, indices)))
+        # Use append method instead of extend method
+        # Since extend method returns each element iteratively so each element is not seperated
+        sequences.append(np.asarray(value[start:(start+seq_length)]))
+        start += seq_length
+    
+    return sequences
 
 
 def pad_sequences(sequences, max_len=None, padding='post', truncated='post', values=0):

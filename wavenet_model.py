@@ -14,7 +14,7 @@ class Wavenet_Model():
     def create_model(self):
         # Placeholders
         # [batch size, step, features]
-        self.inputs = tf.placeholder(tf.float32, [None, None, self.args.num_features], name='wave_input')
+        self.input_data = tf.placeholder(tf.float32, [None, None, self.args.num_features], name='wave_input')
         self.targets = tf.sparse_placeholder(tf.int32, name='target')
         self.seq_len = tf.placeholder(tf.int32, [None], name='sequence_length')
     
@@ -23,7 +23,7 @@ class Wavenet_Model():
         	Construct of a stack of dilated causal convolutional layers
         '''
         # First non-causal convolution to inputs to expand feature dimension
-        h = conv1d(self.inputs, self.args.num_hidden, filter_width=self.args.filter_width, name='conv_in', normalization=self.args.layer_norm, activation=tf.nn.tanh)
+        h = conv1d(self.input_data, self.args.num_hidden, filter_width=self.args.filter_width, name='conv_in', normalization=self.args.layer_norm, activation=tf.nn.tanh)
         # As many as number of blocks, block means one total dilated convolution layers
         for blocks in range(self.args.num_blocks):
         	# Construction of dilation
@@ -38,12 +38,14 @@ class Wavenet_Model():
         	skip = conv1d(tf.nn.relu(skip), self.args.num_hidden, filter_width=self.args.skip_filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out1')
         	hidden = conv1d(skip, self.args.num_hidden, filter_width=self.args.skip_filter_width, activation=tf.nn.relu, normalization=self.args.layer_norm, name='conv_out2')
         	self.logits = conv1d(hidden, self.args.num_classes, filter_width=1, activation=None, normalization=self.args.layer_norm, name='conv_out3')
+
+        self.probability = tf.nn.softmax(self.logits)
         
         # To calculate ctc, consider timemajor
         self.logits_reshaped = tf.transpose(self.logits, [1,0,2])
         self.loss = tf.reduce_mean(tf.nn.ctc_loss(labels=self.targets, inputs=self.logits_reshaped, sequence_length=self.seq_len))
-        self.ctc_decoded, _ = tf.nn.ctc_greedy_decoder(self.logits_reshaped, self.seq_len)	
-        self.ler = tf.reduce_mean(tf.edit_distance(tf.cast(self.ctc_decoded[0], tf.int32), self.targets))
+        self.decoded, _ = tf.nn.ctc_greedy_decoder(self.logits_reshaped, self.seq_len)	
+        self.ler = tf.reduce_mean(tf.edit_distance(tf.cast(self.decoded[0], tf.int32), self.targets))
         # When use tf.contrib.layers.layer_norm(batch_norm), update_ops are placed in tf.GraphKeys.UPDATE_OPS so they need to be added as a dependency to the train_op
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         #with tf.control_dependencies(update_ops):
@@ -113,7 +115,7 @@ class Wavenet_Model():
             	batch_label = label_perm[tr_step*self.args.batch_size : (tr_step+1)*self.args.batch_size]
             	# Make target to sparse tensor form to apply to ctc functions
             	sparse_batch_lbl = sparse_tensor_form(batch_label)
-            	feed = {self.inputs: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
+            	feed = {self.input_data: padded_batch_wav, self.targets: sparse_batch_lbl, self.seq_len: original_batch_length}
             	tr_step_loss, tr_step_ler, _ = self.sess.run([self.loss, self.ler, self.train_op], feed_dict = feed)
             	# Add summary
             	#self.writer.add_summary(summary_str, total_step)
@@ -165,7 +167,7 @@ class Wavenet_Model():
     
     		padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
     		sparse_valid_lbl = sparse_tensor_form(valid_batch_lbl)
-    		valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict={self.inputs:padded_valid_wav, self.targets:sparse_valid_lbl, self.seq_len:padded_valid_length})
+    		valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict={self.input_data:padded_valid_wav, self.targets:sparse_valid_lbl, self.seq_len:padded_valid_length})
     		valid_loss += valid_loss_*self.args.batch_size
     		valid_ler += valid_ler_*self.args.batch_size
     	valid_loss /= len(wave)
