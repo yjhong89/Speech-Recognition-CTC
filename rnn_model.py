@@ -172,32 +172,36 @@ class RNN_Model():
             
             valid_loss = 0
             valid_ler = 0
-            valid_tr_step = len(valid_wav_input) // 100
+            valid_data_length = len(valid_wav_input)
+            valid_tr_step = valid_data_length // self.args.batch_size
             
             for valid_step in xrange(valid_tr_step):
-            	valid_batch_wav = valid_wav_input[valid_step*100:(valid_step+1)*100]
-            	valid_batch_lbl = valid_trg_label[valid_step*100:(valid_step+1)*100]
-            	padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
-            	valid_lbl = sparse_tensor_form(valid_batch_lbl)
-            
-            	valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.input_data:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
-            	valid_loss += valid_loss_
-            	valid_ler += valid_ler_
-            print('Validation error, Loss : %3.3f, LabelError : %3.3f' % (valid_loss / valid_tr_step, valid_ler / valid_tr_step))
-            if (valid_loss / valid_tr_step) < best_valid_loss:
-            	print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss / valid_tr_step))
-            	best_valid_loss = (valid_loss / valid_tr_step)
-            	# Save only when validation improved
-            	print('Save')
-            	self.save(index+1)
-            	overfit_index = 0
+				valid_batch_wav = valid_wav_input[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
+				valid_batch_lbl = valid_trg_label[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
+				padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
+				valid_lbl = sparse_tensor_form(valid_batch_lbl)
+				
+				valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.input_data:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
+				valid_loss += valid_loss_*seef.args.batch_size
+				valid_ler += valid_ler_*self.args.batch_size
+	
+            valid_loss /= valid_data_length
+            valid_ler /= valid_data_length
+            print('Validation error, Loss : %3.3f, LabelError : %3.3f' % (valid_loss, valid_ler))
+            if valid_loss < best_valid_loss:
+				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss))
+				best_valid_loss = valid_loss 
+				# Save only when validation improved
+				print('Save')
+				self.save(index+1)
+				overfit_index = 0
             else:	
-            	overfit_index += 1   	
-            	print('Validation not improved from %3.4f at %d epochs' % (best_valid_loss, overfit_index))
-             
-            self.write_log(index+1, train_loss, train_ler, valid_loss / valid_tr_step, valid_ler / valid_tr_step, start_time)
+				overfit_index += 1   	
+				print('Validation not improved from %3.4f at %d epochs' % (best_valid_loss, overfit_index))
+			 
+            self.write_log(index+1, train_loss, train_ler, valid_loss, valid_ler, start_time)
             
-            if train_ler < 1e-1 and valid_ler < 0.2:
+            if train_ler < 1e-1 and valid_ler < 0.1:
             	print('Label error rate is below 0.1 at epoch %d' % (index+1)) 
             	print('Valid error rate is below 0.2 at epoch %d' % (index+1))
             	self.save(index+1)
@@ -211,8 +215,6 @@ class RNN_Model():
             	overfit_index = 0
             	datamove_flag = 1
             	best_valid_loss = 1000
-#   		   	if partition_idx == 50:
-#				partition_idx = 0
 #			print('%d epoch finished' % (index+1))
    
     

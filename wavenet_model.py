@@ -142,7 +142,7 @@ class Wavenet_Model():
             else:
                 overfit_index += 1
             
-            if train_ler < 1e-1 and valid_ler < 0.15:
+            if train_ler < 1e-1 and valid_ler < 0.1:
             	print('Label error rate is below 0.1 at epoch %d' % (index+1)) 
             	print('Valid error rate is below 0.2 at epoch %d' % (index+1))
             	self.save(self.data_index+1)
