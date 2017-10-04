@@ -118,14 +118,7 @@ class RNN_Model():
         			print('[Delete Error] %s - %s' % (e.filename, e.strerror))
         
         total_step = 1 
-        best_valid_loss = 1000
-        overfit_index = 0
-        partition_idx = self.args.start_data 
         datamove_flag = 1
-        # Loading Validation data
-        valid_wav_input = np.load(os.path.join(self.args.valid_data_dir, 'waves_0.npy'))
-        valid_trg_label = np.load(os.path.join(self.args.valid_data_dir, 'trans_0.npy'))
-        print('%d valid input and %d valid target set loaded' % (len(valid_wav_input), len(valid_trg_label))) 
         
         for index in xrange(self.loaded_epoch, self.args.num_epoch):
             # Shuffling datas
@@ -136,13 +129,19 @@ class RNN_Model():
             train_ler = 0
             # Newly load new data
             if datamove_flag:
-            	print('Loading dataset')
-            	batch_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_{}.npy'.format(partition_idx)))
-            	batch_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_{}.npy'.format(partition_idx)))
-            	print('%d-th %d wave %d target dataset loaded' % (partition_idx, len(batch_wave), len(batch_label)))
+            	inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_1.npy'), encoding='bytes')
+            	inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_1.npy'), encoding='bytes')
+            	print('%d wave %d target dataset loaded' % (len(batch_wave), len(batch_label)))
             	data_length = len(batch_wave)
+                train_index = int(data_length*0.9)
             	trainingsteps_per_epoch = data_length // self.args.batch_size    
             	datamove_flag = 0
+                best_valid_loss = 1000
+                best_valid_ler = 1000
+                batch_wave = inputs_wave[:train_index]
+                batch_label = inputs_label[:train_index]
+                valid_wav_input = inputs_wave[train_index:data_length]
+                valid_trg_label = inputs_label[train_index:data_length]
             
             for tr_step in xrange(trainingsteps_per_epoch):
             	s_time = time.time()
@@ -207,15 +206,13 @@ class RNN_Model():
             	self.save(index+1)
             	break
             
-            if overfit_index == self.args.overfit_index:	
+            if (overfit_index == self.args.overfit_index) or (train_ler >1e-1):	
             	partition_idx += 1
             	print('Move to %d dataset' % (partition_idx+1))
             	# To distinguish between dataset
             	self.log_file.write('\n')
             	overfit_index = 0
             	datamove_flag = 1
-            	best_valid_loss = 1000
-#			print('%d epoch finished' % (index+1))
    
     
     @property
