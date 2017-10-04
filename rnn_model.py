@@ -131,8 +131,8 @@ class RNN_Model():
             if datamove_flag:
             	inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_1.npy'), encoding='bytes')
             	inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_1.npy'), encoding='bytes')
-            	print('%d wave %d target dataset loaded' % (len(batch_wave), len(batch_label)))
-            	data_length = len(batch_wave)
+            	print('%d wave %d target dataset loaded' % (len(inputs_wave), len(inputs_label)))
+            	data_length = len(inputs_wave)
                 train_index = int(data_length*0.9)
             	trainingsteps_per_epoch = data_length // self.args.batch_size    
             	datamove_flag = 0
@@ -218,9 +218,9 @@ class RNN_Model():
     @property
     def model_dir(self):
     	if self.args.dropout == 0:
-    		return '{}_{}layers_{}state_{}batch_{}classes_ctc'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
+    		return '{}_{}layers_{}state_{}batch_{}classes'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
     	else:
-    		return '{}_{}layers_{}state_{}batch_{}classes_dropout_ctc'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
+    		return '{}_{}layers_{}state_{}batch_{}classes_dropout'.format(self.args.model, self.args.num_layers, self.args.state_size, self.args.batch_size, self.args.num_classes)
     
     def save(self, total_step):
     	model_name = 'RNN' 
