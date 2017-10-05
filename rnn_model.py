@@ -181,7 +181,7 @@ class RNN_Model():
 				valid_lbl = sparse_tensor_form(valid_batch_lbl)
 				
 				valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.input_data:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
-				valid_loss += valid_loss_*seef.args.batch_size
+				valid_loss += valid_loss_*self.args.batch_size
 				valid_ler += valid_ler_*self.args.batch_size
 	
             valid_loss /= valid_data_length
