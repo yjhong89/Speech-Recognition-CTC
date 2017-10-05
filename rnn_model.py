@@ -134,7 +134,7 @@ class RNN_Model():
             	print('%d wave %d target dataset loaded' % (len(inputs_wave), len(inputs_label)))
             	data_length = len(inputs_wave)
                 train_index = int(data_length*0.9)
-            	trainingsteps_per_epoch = data_length // self.args.batch_size    
+            	trainingsteps_per_epoch = train_index // self.args.batch_size    
             	datamove_flag = 0
                 best_valid_loss = 1000
                 best_valid_ler = 1000
