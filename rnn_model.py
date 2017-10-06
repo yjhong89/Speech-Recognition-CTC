@@ -118,7 +118,20 @@ class RNN_Model():
         			print('[Delete Error] %s - %s' % (e.filename, e.strerror))
         
         total_step = 1 
-        datamove_flag = 1
+        # Newly load new data
+        inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_1.npy'), encoding='bytes')
+        inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_1.npy'), encoding='bytes')
+        print('%d wave %d target dataset loaded' % (len(inputs_wave), len(inputs_label)))
+        data_length = len(inputs_wave)
+        train_index = int(data_length*0.8)
+        valid_index = int(data_length*0.9)
+        trainingsteps_per_epoch = train_index // self.args.batch_size    
+        batch_wave = inputs_wave[:train_index]
+        batch_label = inputs_label[:train_index]
+        valid_wav_input = inputs_wave[train_index:valid_index]
+        valid_trg_label = inputs_label[train_index:valid_index]
+        test_wave = inputs_wave[valid_index:data_length]
+        test_label = inputs_label[valid_index:data_length]
         
         for index in xrange(self.loaded_epoch, self.args.num_epoch):
             # Shuffling datas
@@ -127,21 +140,8 @@ class RNN_Model():
             print("%d th epoch starts" % (index+1))
             train_loss = 0
             train_ler = 0
-            # Newly load new data
-            if datamove_flag:
-            	inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_1.npy'), encoding='bytes')
-            	inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_1.npy'), encoding='bytes')
-            	print('%d wave %d target dataset loaded' % (len(inputs_wave), len(inputs_label)))
-            	data_length = len(inputs_wave)
-                train_index = int(data_length*0.9)
-            	trainingsteps_per_epoch = train_index // self.args.batch_size    
-            	datamove_flag = 0
-                best_valid_loss = 1000
-                best_valid_ler = 1000
-                batch_wave = inputs_wave[:train_index]
-                batch_label = inputs_label[:train_index]
-                valid_wav_input = inputs_wave[train_index:data_length]
-                valid_trg_label = inputs_label[train_index:data_length]
+            best_valid_loss = 1000
+            best_valid_ler = 1000
             
             for tr_step in xrange(trainingsteps_per_epoch):
             	s_time = time.time()
@@ -169,51 +169,55 @@ class RNN_Model():
             
             print('Epoch %d/%d, Training loss : %3.3f, Training LabelError : %3.3f, Time per epoch: %3.3f' % (index+1, self.args.num_epoch, train_loss, train_ler, time.time() - start_time))
             
-            valid_loss = 0
-            valid_ler = 0
+            valid_loss, valid_ler = self.evaluate(valid_wav_input, valid_trg_label)
             valid_data_length = len(valid_wav_input)
             valid_tr_step = valid_data_length // self.args.batch_size
             
-            for valid_step in xrange(valid_tr_step):
-				valid_batch_wav = valid_wav_input[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
-				valid_batch_lbl = valid_trg_label[valid_step*self.args.batch_size:(valid_step+1)*self.args.batch_size]
-				padded_valid_wav, padded_valid_length = pad_sequences(valid_batch_wav)
-				valid_lbl = sparse_tensor_form(valid_batch_lbl)
-				
-				valid_loss_, valid_ler_ = self.sess.run([self.loss, self.ler], feed_dict = {self.input_data:padded_valid_wav, self.targets:valid_lbl, self.seq_len:padded_valid_length})
-				valid_loss += valid_loss_*self.args.batch_size
-				valid_ler += valid_ler_*self.args.batch_size
-	
-            valid_loss /= valid_data_length
-            valid_ler /= valid_data_length
-            print('Validation error, Loss : %3.3f, LabelError : %3.3f' % (valid_loss, valid_ler))
-            if valid_loss < best_valid_loss:
-				print('Validation improved from %3.4f to %3.4f' % (best_valid_loss, valid_loss))
-				best_valid_loss = valid_loss 
-				# Save only when validation improved
-				print('Save')
-				self.save(index+1)
-				overfit_index = 0
-            else:	
-				overfit_index += 1   	
-				print('Validation not improved from %3.4f at %d epochs' % (best_valid_loss, overfit_index))
-			 
             self.write_log(index+1, train_loss, train_ler, valid_loss, valid_ler, start_time)
+            
+            if valid_ler < best_valid_ler:
+            	print('Validation improved from %3.4f to %3.4f' % (best_valid_ler, valid_ler))
+            	best_valid_loss = valid_loss
+                best_valid_ler = valid_ler 
+            	# Save only when validation improved
+            	print('Save')
+            	self.save(index+1)
+            	overfit_index = 0
+            else:	
+            	overfit_index += 1   	
+            	print('Validation not improved from %3.4f at %d epochs' % (best_valid_loss, overfit_index))
+             
             
             if train_ler < 1e-1 and valid_ler < 0.1:
             	print('Label error rate is below 0.1 at epoch %d' % (index+1)) 
-            	print('Valid error rate is below 0.2 at epoch %d' % (index+1))
+            	print('Valid error rate is below 0.1 at epoch %d' % (index+1))
             	self.save(index+1)
             	break
             
-            if (overfit_index == self.args.overfit_index) or (train_ler >1e-1):	
-            	partition_idx += 1
-            	print('Move to %d dataset' % (partition_idx+1))
-            	# To distinguish between dataset
-            	self.log_file.write('\n')
-            	overfit_index = 0
-            	datamove_flag = 1
+#            if (overfit_index == self.args.overfit_index) or (train_ler >1e-1):	
+#            	self.log_file.write('\n')
+#            	overfit_index = 0
+#            	datamove_flag = 1
    
+
+    def evaluate(self, wave, label):
+        test_loss = 0
+        test_ler = 0
+        test_tr_step = len(wave) // self.args.batch_size
+        for test_step in range(test_tr_step):
+            test_batch_wave = wave[test_step*self.args.batch_size : (test_step+1)*self.args.batch_size]
+            test_batch_label = label[test_step*self.args.batch_size : (test_step+1)*self.args.batch_size]
+            padded_test_wave, padded_test_length = pad_sequences(test_batch_wave)
+            sparse_test_lbl = sparse_tensor_form(test_batch_label)
+            test_loss_, test_ler_ = self.sess.run([self.loss, self.ler], feed_dict={self.input_data:padded_test_wave, self.targets:sparse_test_lbl, self.seq_len:padded_test_length})
+            test_loss += test_loss_*self.args.batch_size
+            test_ler += test_ler_*self.args.batch_size
+
+        test_loss /= len(wave)
+        test_ler /= len(wave)
+        print('Test loss : %3.3f, labelError : %3.3f' % (test_loss, test_ler))
+        return test_loss, test_ler
+
     
     @property
     def model_dir(self):
