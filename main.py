@@ -12,8 +12,8 @@ from wavenet_model import Wavenet_Model
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_wav_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/waves_10000', help='data directory containing audio clip')
-    parser.add_argument('--train_lbl_dir', type=str, default='/home/yjhong89/asr_dataset/ldc/trans_10000', help='data directory containing transcript')
+    parser.add_argument('--train_wav_dir', type=str, default='./', help='data directory containing audio clip')
+    parser.add_argument('--train_lbl_dir', type=str, default='./', help='data directory containing transcript')
     parser.add_argument('--test_data_dir', type=str, default='../test', help='data directory containing audio clip and transcription')
     #parser.add_argument('--valid_data_dir', type=str, default='./validation')
     parser.add_argument('--files_dir', type=str, default='./files')
@@ -40,7 +40,7 @@ def main():
     
     if model_type == 'RNN':
         parser.add_argument('--state_size', type=int, default=256, help='size of RNN hidden state')
-        parser.add_argument('--num_layers', type=int, default=3, help='number of layers in RNN')
+        parser.add_argument('--num_layers', type=int, default=2, help='number of layers in RNN')
         parser.add_argument('--dropout', type=str2bool, default='n', help='dropout')
         parser.add_argument('--keep_prob', type=float, default=0.9)
         parser.add_argument('--model', type=str, default='LSTM', choices=['LSTM', 'GRU'])
@@ -61,9 +61,9 @@ def main():
     print(args)
     
     if not os.path.exists(args.checkpoint_dir):
-    	os.makedirs(args.checkpoint_dir)
+    	os.mkdir(args.checkpoint_dir)
     if not os.path.exists(args.files_dir):
-    	os.makedirs(args.files_dir)
+    	os.mkdir(args.files_dir)
     if not os.path.exists(args.log_dir):
     	os.mkdir(args.log_dir)
     
