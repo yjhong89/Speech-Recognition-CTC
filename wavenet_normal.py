@@ -120,8 +120,8 @@ class Wavenet_Model():
             	print("[%d/%d] in Epoch %d, Train loss = %3.3f, Ler = %3.3f, Time per batch = %3.3f, %d steps" % (tr_step+1, trainingsteps_per_epoch, index+1, tr_step_loss, tr_step_ler, time.time()-s_time, total_step))
             	total_step += 1
             
-            train_loss /= len(wave_train)
-            train_ler /= len(wave_train)
+            train_loss /= len(batch_wave)
+            train_ler /= len(batch_label)
             
             print('Epoch %d/%d, Training loss : %3.3f, Training LabelError : %3.3f, Time per epoch: %3.3f' % (index+1, self.args.num_epoch, train_loss, train_ler, time.time() - start_time))
             

@@ -164,8 +164,8 @@ class RNN_Model():
             	total_step += 1
             
             # Metric mean
-            train_loss /= data_length
-            train_ler /= data_length
+            train_loss /= len(batch_wave)
+            train_ler /= len(batch_wave)
             
             print('Epoch %d/%d, Training loss : %3.3f, Training LabelError : %3.3f, Time per epoch: %3.3f' % (index+1, self.args.num_epoch, train_loss, train_ler, time.time() - start_time))
             
