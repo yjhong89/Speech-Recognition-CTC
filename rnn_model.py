@@ -171,7 +171,6 @@ class RNN_Model():
             
             valid_loss, valid_ler = self.evaluate(valid_wav_input, valid_trg_label)
             valid_data_length = len(valid_wav_input)
-            valid_tr_step = valid_data_length // self.args.batch_size
             
             self.write_log(index+1, train_loss, train_ler, valid_loss, valid_ler, start_time)
             
