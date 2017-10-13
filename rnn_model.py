@@ -119,8 +119,8 @@ class RNN_Model():
         
         total_step = 1 
         # Newly load new data
-        inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'wave_1.npy'), encoding='bytes')
-        inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'tran_1.npy'), encoding='bytes')
+        inputs_wave = np.load(os.path.join(self.args.train_wav_dir, 'waves_10000.npy'), encoding='bytes')
+        inputs_label = np.load(os.path.join(self.args.train_lbl_dir, 'trans_10000.npy'), encoding='bytes')
         print('%d wave %d target dataset loaded' % (len(inputs_wave), len(inputs_label)))
         data_length = len(inputs_wave)
         train_index = int(data_length*0.8)
@@ -132,6 +132,8 @@ class RNN_Model():
         valid_trg_label = inputs_label[train_index:valid_index]
         test_wave = inputs_wave[valid_index:data_length]
         test_label = inputs_label[valid_index:data_length]
+        best_valid_loss = 1000
+        best_valid_ler = 1000
         
         for index in xrange(self.loaded_epoch, self.args.num_epoch):
             # Shuffling datas
@@ -140,8 +142,6 @@ class RNN_Model():
             print("%d th epoch starts" % (index+1))
             train_loss = 0
             train_ler = 0
-            best_valid_loss = 1000
-            best_valid_ler = 1000
             
             for tr_step in xrange(trainingsteps_per_epoch):
             	s_time = time.time()
