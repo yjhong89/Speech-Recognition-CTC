@@ -92,7 +92,8 @@ class Wavenet_Model():
         valid_trg_label = inputs_label[train_index:valid_index]
         test_wave = inputs_wave[valid_index:data_length]
         test_label = inputs_label[valid_index:data_length]
-        datamove_flag = 1
+        best_valid_loss = 1000
+        best_valid_ler = 1000
         
         for index in range(0, self.args.num_epoch):
             start_time = time.time()
